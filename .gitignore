@@ -16,5 +16,8 @@ runtime.json
 .DS_Store
 Thumbs.db
 
+# 本地私有内容（凭据备忘、临时脚本），不入库
+.local/
+
 # 本地配置覆盖（保留 example）
 myworld.config.json
