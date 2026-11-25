@@ -230,7 +230,7 @@
           <footer class="detail-foot">
             <p class="form-error" id="detailError" hidden></p>
             <div class="detail-actions">
-              <button class="btn ghost" id="btnUsePreset" type="button">选用预设</button>
+              <button class="btn ghost" id="btnUsePreset" type="button">导入预设</button>
               <button class="btn ghost detail-cancel" id="btnDetailCancel" type="button">取消</button>
               <button class="btn" id="btnDetailSave" type="button">保存</button>
             </div>
@@ -317,6 +317,31 @@
       <p class="hint" id="presetPickerEmpty" hidden>还没有预设，先到左侧「预设」里建一个。</p>
       <div class="dialog-actions">
         <button class="btn ghost" type="button" id="btnPresetPickerCancel">取消</button>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- 选用预设（角色属性面板里点「导入预设」弹出） -->
+  <dialog class="dialog" id="presetPickerDialog" aria-labelledby="presetPickerTitle">
+    <div class="dialog-form">
+      <h3 class="dialog-title" id="presetPickerTitle">导入预设</h3>
+      <p class="hint">选中一个预设，按它的属性名调整当前角色：缺的补上、多出来的删掉。</p>
+      <div class="preset-picker-list" id="presetPickerList"></div>
+      <p class="hint" id="presetPickerEmpty" hidden>还没有预设，先到左侧「预设」里建一个。</p>
+      <div class="dialog-actions">
+        <button class="btn ghost" type="button" id="btnPresetPickerCancel">取消</button>
+      </div>
+    </div>
+  </dialog>
+
+  <!-- 导入预设前的变更确认 -->
+  <dialog class="dialog" id="presetImportDialog" aria-labelledby="presetImportTitle">
+    <div class="dialog-form">
+      <h3 class="dialog-title" id="presetImportTitle">导入预设</h3>
+      <p class="hint" id="presetImportText"></p>
+      <div class="dialog-actions">
+        <button class="btn ghost" type="button" id="btnImportCancel">取消</button>
+        <button class="btn danger" type="button" id="btnImportConfirm">导入</button>
       </div>
     </div>
   </dialog>

@@ -78,6 +78,10 @@
     presetPickerList: $("presetPickerList"),
     presetPickerEmpty: $("presetPickerEmpty"),
     btnPresetPickerCancel: $("btnPresetPickerCancel"),
+    presetImportDialog: $("presetImportDialog"),
+    presetImportText: $("presetImportText"),
+    btnImportCancel: $("btnImportCancel"),
+    btnImportConfirm: $("btnImportConfirm"),
     detailError: $("detailError"),
     btnCloseWorld: $("btnCloseWorld"),
     worldMenu: $("worldMenu"),
@@ -542,8 +546,10 @@
     currentDetailName = null;
   }
 
-  /* 面板「选用预设」：预设只有属性名，套用时只补缺失的行，绝不动已有值 */
-  function applyPresetToRows(item) {
+  /* 面板「导入预设」：按预设的属性名清单调整角色——缺的补上、多余的连值一起删掉 */
+  let pendingImport = null;
+
+  function planPresetImport(item) {
     if (!el.attrList) return;
 
     const keys = item.keys ?? [];
@@ -552,27 +558,46 @@
       return;
     }
 
-    const rows = [...el.attrList.querySelectorAll(".attr-row")].slice(1); // 第一行是姓名，跳过
-    const existing = new Set(
-      rows
-        .map((row) => (row.querySelector(".attr-label-input")?.value ?? "").trim())
-        .filter(Boolean),
-    );
+    const rows = [...el.attrList.querySelectorAll(".attr-row")].slice(1); // 跳过姓名
+    const entries = rows
+      .map((row) => ({ row, label: (row.querySelector(".attr-label-input")?.value ?? "").trim() }))
+      .filter((entry) => entry.label);
 
-    let added = 0;
-    for (const key of keys) {
-      if (existing.has(key)) continue;
-      el.attrList.append(makeAttrRow({ label: key, value: "" }));
-      existing.add(key);
-      added += 1;
+    const keySet = new Set(keys);
+    const toAdd = keys.filter((key) => !entries.some((entry) => entry.label === key));
+    const toRemove = entries.filter((entry) => !keySet.has(entry.label));
+
+    if (!toAdd.length && !toRemove.length) {
+      toast(`「${item.name}」和当前属性已经一致`);
+      return;
     }
 
+    pendingImport = { item, toAdd, toRemove };
+    const parts = [];
+    if (toAdd.length) {
+      parts.push(`补充 ${toAdd.length} 个：${toAdd.join("、")}`);
+    }
+    if (toRemove.length) {
+      parts.push(`删除 ${toRemove.length} 个（连值一起删）：${toRemove.map((entry) => entry.label).join("、")}`);
+    }
+    if (el.presetImportText) {
+      el.presetImportText.textContent =
+        `导入「${item.name}」会把属性调整成预设的清单——${parts.join("；")}。` +
+        "删除的值无法恢复（还可以点「取消」不保存），确定要导入吗？";
+    }
+    el.presetImportDialog?.showModal();
+  }
+
+  function confirmPresetImport() {
+    if (!pendingImport) return;
+    const { item, toAdd, toRemove } = pendingImport;
+
+    for (const entry of toRemove) entry.row.remove();
+    for (const key of toAdd) el.attrList.append(makeAttrRow({ label: key, value: "" }));
+
     if (el.detailError) el.detailError.hidden = true;
-    toast(
-      added
-        ? `已套用「${item.name}」：新增 ${added} 个属性名`
-        : `「${item.name}」的属性名都已经有了`,
-    );
+    pendingImport = null;
+    toast(`已导入「${item.name}」：补充 ${toAdd.length} 个、删除 ${toRemove.length} 个`);
   }
 
   async function openPresetPicker() {
@@ -611,7 +636,7 @@
       button.append(name, meta);
       button.addEventListener("click", () => {
         el.presetPickerDialog.close();
-        requestAnimationFrame(() => applyPresetToRows(item));
+        requestAnimationFrame(() => planPresetImport(item));
       });
       el.presetPickerList.append(button);
     }
@@ -1801,6 +1826,17 @@
   on(el.btnDetailSave, "click", saveCharacterDetail);
   on(el.btnUsePreset, "click", openPresetPicker);
   on(el.btnPresetPickerCancel, "click", () => el.presetPickerDialog?.close());
+  on(el.btnImportCancel, "click", () => {
+    pendingImport = null;
+    el.presetImportDialog?.close();
+  });
+  on(el.btnImportConfirm, "click", () => {
+    confirmPresetImport();
+    el.presetImportDialog?.close();
+  });
+  el.presetImportDialog?.addEventListener("close", () => {
+    pendingImport = null;
+  });
 
   // 点面板里的立绘 → 选图 → 裁剪 → 直接上传
   on(el.detailPhotoBtn, "click", () => el.detailImage?.click());
