@@ -15,6 +15,7 @@ Windows 保留名、以及以点开头（避免和隐藏目录/相对路径混�
 from __future__ import annotations
 
 import json
+import shutil
 import unicodedata
 from datetime import datetime, timezone
 from pathlib import Path
@@ -148,7 +149,6 @@ def create_world(root: Path, raw_name: str) -> dict[str, Any]:
     path = _world_path(root, name)
     if path.exists():
         raise WorldError(f"世界「{name}」已经存在", status=409)
-
     try:
         path.mkdir(parents=False, exist_ok=False)
     except OSError as exc:
@@ -165,3 +165,13 @@ def create_world(root: Path, raw_name: str) -> dict[str, Any]:
         encoding="utf-8",
     )
     return {"name": name, "created_at": created, "path": f"data/{name}"}
+
+
+def delete_world(root: Path, raw_name: str) -> dict[str, Any]:
+    """删除世界目录（连同里面的所有内容）。"""
+    directory = world_dir(root, raw_name)
+    try:
+        shutil.rmtree(directory)
+    except OSError as exc:
+        raise WorldError(f"删除失败：{exc.strerror or exc}") from exc
+    return {"name": directory.name, "deleted": True}

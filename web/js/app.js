@@ -56,11 +56,18 @@
     canvasWorldName: $("canvasWorldName"),
     canvasWorldPath: $("canvasWorldPath"),
     btnCloseWorld: $("btnCloseWorld"),
+    worldMenu: $("worldMenu"),
+    menuDelete: $("menuDelete"),
+    confirmDialog: $("confirmDialog"),
+    confirmText: $("confirmText"),
+    btnConfirmOk: $("btnConfirmOk"),
+    btnConfirmCancel: $("btnConfirmCancel"),
   };
 
   const state = {
     ws: null,
     connected: false,
+    worlds: [],
     reconnectDelay: 1000,
     reconnectMax: 15000,
     heartbeat: null,
@@ -157,6 +164,9 @@
 
   let selectedWorld = null;
   let selectedItem = null;
+  let loadedWorldName = null;
+  let menuTarget = null;
+  let pendingDelete = null;
 
   async function loadWorlds() {
     try {
@@ -168,6 +178,7 @@
   }
 
   function renderWorlds(items) {
+    state.worlds = items;
     el.worldList.replaceChildren();
     el.worldEmpty.hidden = items.length > 0;
 
@@ -275,6 +286,7 @@
       return;
     }
     clearLoadError();
+    loadedWorldName = selectedItem.name;
     if (el.canvasHint) el.canvasHint.hidden = true;
     if (el.canvasWorld) el.canvasWorld.hidden = false;
     if (el.canvasWorldName) el.canvasWorldName.textContent = selectedItem.name;
@@ -283,8 +295,93 @@
   }
 
   function closeLoadedWorld() {
+    loadedWorldName = null;
     if (el.canvasWorld) el.canvasWorld.hidden = true;
     if (el.canvasHint) el.canvasHint.hidden = false;
+  }
+
+  // ---------------- 世界卡片右键菜单 ----------------
+
+  function openWorldMenu(x, y) {
+    if (!el.worldMenu) return;
+    el.worldMenu.hidden = false;
+    const rect = el.worldMenu.getBoundingClientRect();
+    const left = Math.max(8, Math.min(x, window.innerWidth - rect.width - 8));
+    const top = Math.max(8, Math.min(y, window.innerHeight - rect.height - 8));
+    el.worldMenu.style.left = `${left}px`;
+    el.worldMenu.style.top = `${top}px`;
+    el.menuDelete?.focus();
+  }
+
+  function closeWorldMenu() {
+    if (el.worldMenu) el.worldMenu.hidden = true;
+  }
+
+  function initWorldMenu() {
+    if (!el.worldList || !el.worldMenu) return;
+
+    el.worldList.addEventListener("contextmenu", (event) => {
+      const card = event.target.closest(".world-card");
+      if (!card) return;
+      event.preventDefault();
+      menuTarget = state.worlds.find((item) => item.name === card.dataset.name) ?? null;
+      if (menuTarget) openWorldMenu(event.clientX, event.clientY);
+    });
+
+    // 点别处、按 Esc、滚动、改窗口大小都收起菜单
+    document.addEventListener("pointerdown", (event) => {
+      if (!el.worldMenu.hidden && !el.worldMenu.contains(event.target)) closeWorldMenu();
+    });
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape") closeWorldMenu();
+    });
+    el.worldList.addEventListener("scroll", closeWorldMenu, true);
+    window.addEventListener("resize", closeWorldMenu);
+
+    on(el.menuDelete, "click", () => {
+      closeWorldMenu();
+      if (menuTarget) requestDeleteWorld(menuTarget);
+    });
+  }
+
+  function requestDeleteWorld(item) {
+    pendingDelete = item;
+    if (!el.confirmDialog || !el.confirmText) return;
+    el.confirmText.textContent = `世界「${item.name}」以及它目录里的所有文件都会被删除，无法恢复。`;
+    el.confirmDialog.showModal();
+    requestAnimationFrame(() => el.btnConfirmOk?.focus());
+  }
+
+  async function confirmDeleteWorld() {
+    if (!pendingDelete) return;
+    const item = pendingDelete;
+
+    el.btnConfirmOk.disabled = true;
+    try {
+      const response = await fetch(`/api/worlds/${encodeURIComponent(item.name)}`, { method: "DELETE" });
+      if (!response.ok) {
+        let detail = `HTTP ${response.status}`;
+        try {
+          const body = await response.json();
+          if (body && body.detail) detail = body.detail;
+        } catch {
+          /* 非 JSON 响应就保持默认信息 */
+        }
+        throw new Error(detail);
+      }
+
+      if (selectedWorld === item.name) clearSelection();
+      if (loadedWorldName === item.name) closeLoadedWorld();
+
+      pendingDelete = null;
+      el.confirmDialog.close();
+      await loadWorlds();
+      debug("删除世界", item);
+    } catch (err) {
+      if (el.confirmText) el.confirmText.textContent = "删除失败：" + err.message;
+    } finally {
+      el.btnConfirmOk.disabled = false;
+    }
   }
 
   // ---------------- 创建弹窗（世界 / 预设共用） ----------------
@@ -867,6 +964,9 @@
   on(el.btnCreatePreset, "click", () => openCreateDialog("preset"));
   on(el.btnLoadWorld, "click", loadSelectedWorld);
   on(el.btnCloseWorld, "click", closeLoadedWorld);
+  initWorldMenu();
+  on(el.btnConfirmOk, "click", confirmDeleteWorld);
+  on(el.btnConfirmCancel, "click", () => el.confirmDialog?.close());
   on(el.createForm, "submit", (event) => {
     event.preventDefault();
     submitCreate();

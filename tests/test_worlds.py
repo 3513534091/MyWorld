@@ -97,6 +97,24 @@ class CreateListTests(unittest.TestCase):
             worlds.world_dir(self.root, "不存在的世界")
         self.assertEqual(ctx.exception.status, 404)
 
+    def test_delete_removes_directory(self) -> None:
+        worlds.create_world(self.root, "要删的世界")
+        result = worlds.delete_world(self.root, "要删的世界")
+        self.assertTrue(result["deleted"])
+        self.assertFalse((self.root / "要删的世界").exists())
+        self.assertEqual(worlds.list_worlds(self.root), [])
+
+    def test_delete_missing_raises_404(self) -> None:
+        with self.assertRaises(worlds.WorldError) as ctx:
+            worlds.delete_world(self.root, "不存在的世界")
+        self.assertEqual(ctx.exception.status, 404)
+
+    def test_delete_rejects_traversal(self) -> None:
+        for bad in ("../data", "a/b", ""):
+            with self.subTest(bad=bad):
+                with self.assertRaises(worlds.WorldError):
+                    worlds.delete_world(self.root, bad)
+
     def test_find_thumbnail_defaults_to_none(self) -> None:
         worlds.create_world(self.root, "世界")
         self.assertIsNone(worlds.find_thumbnail(self.root, "世界"))

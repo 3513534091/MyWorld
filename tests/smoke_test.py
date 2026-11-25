@@ -234,6 +234,33 @@ async def run_checks(port: int, data_dir: str) -> list[tuple[str, bool, str]]:
         escaped = (Path(data_dir).parent / "escape").exists()
         checks.append(("路径逃逸被挡住", not escaped, "数据目录同级没有出现 escape"))
 
+        # ---- 删除世界（放在世界相关断言之后，否则会把后面要用的目录删掉） ----
+        async with session.delete(f"{base}/api/worlds/{quote('测试世界')}") as response:
+            body = await response.json()
+            checks.append(
+                (
+                    "DELETE /api/worlds 删除世界",
+                    response.status == 200 and body.get("deleted") is True,
+                    f"{response.status} {body.get('name')}",
+                )
+            )
+
+        checks.append(
+            (
+                "世界目录已从磁盘移除",
+                not (Path(data_dir) / "测试世界").exists(),
+                str(Path(data_dir) / "测试世界"),
+            )
+        )
+
+        async with session.get(base + "/api/worlds") as response:
+            listing = await response.json()
+            names = [item["name"] for item in listing.get("items", [])]
+            checks.append(("删除后列表为空", names == [], str(names)))
+
+        async with session.delete(f"{base}/api/worlds/{quote('测试世界')}") as response:
+            checks.append(("删除不存在的世界返回 404", response.status == 404, str(response.status)))
+
         # ---- 预设（和世界同一套名字规则，独立目录） ----
         async with session.get(base + "/api/presets") as response:
             listing = await response.json()

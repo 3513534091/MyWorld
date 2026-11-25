@@ -175,6 +175,16 @@ def create_app(settings: Settings) -> FastAPI:
         logger.info("创建世界「%s」→ %s", created["name"], created["path"])
         return created
 
+    @app.delete("/api/worlds/{name}", summary="删除世界")
+    async def api_delete_world(name: str) -> dict[str, Any]:
+        root = worlds.resolve_root(runtime.settings.data_dir)
+        try:
+            result = worlds.delete_world(root, name)
+        except worlds.WorldError as exc:
+            raise HTTPException(status_code=exc.status, detail=str(exc)) from exc
+        logger.info("删除世界「%s」", result["name"])
+        return result
+
     @app.get("/api/presets", summary="列出所有预设")
     async def api_presets() -> dict[str, Any]:
         root = presets.resolve_root(worlds.resolve_root(runtime.settings.data_dir))

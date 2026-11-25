@@ -203,6 +203,23 @@
     </section>
   </main>
 
+  <!-- 世界卡片右键菜单 -->
+  <div class="context-menu" id="worldMenu" role="menu" hidden>
+    <button class="context-item danger" type="button" id="menuDelete" role="menuitem">删除</button>
+  </div>
+
+  <!-- 删除确认 -->
+  <dialog class="dialog dialog-confirm" id="confirmDialog" aria-labelledby="confirmTitle">
+    <div class="dialog-form">
+      <h3 class="dialog-title" id="confirmTitle">删除世界</h3>
+      <p class="confirm-text" id="confirmText"></p>
+      <div class="dialog-actions">
+        <button class="btn ghost" type="button" id="btnConfirmCancel">取消</button>
+        <button class="btn danger" type="button" id="btnConfirmOk">删除</button>
+      </div>
+    </div>
+  </dialog>
+
   <!-- 创建世界 / 预设共用的弹窗（世界模式更大，可挑封面） -->
   <dialog class="dialog" id="createDialog" aria-labelledby="createTitle">
     <form class="dialog-form" id="createForm">
