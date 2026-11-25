@@ -92,6 +92,26 @@ class CreateListTests(unittest.TestCase):
         (self.root / "not-a-world.txt").write_text("x", encoding="utf-8")
         self.assertEqual(worlds.list_worlds(self.root), [])
 
+    def test_world_dir_missing_raises_404(self) -> None:
+        with self.assertRaises(worlds.WorldError) as ctx:
+            worlds.world_dir(self.root, "不存在的世界")
+        self.assertEqual(ctx.exception.status, 404)
+
+    def test_find_thumbnail_defaults_to_none(self) -> None:
+        worlds.create_world(self.root, "世界")
+        self.assertIsNone(worlds.find_thumbnail(self.root, "世界"))
+
+    def test_find_thumbnail_picks_existing_image(self) -> None:
+        worlds.create_world(self.root, "世界")
+        (self.root / "世界" / "thumbnail.png").write_bytes(b"\x89PNG\r\n\x1a\n")
+        found = worlds.find_thumbnail(self.root, "世界")
+        self.assertIsNotNone(found)
+        self.assertEqual(found.name, "thumbnail.png")
+
+    def test_find_thumbnail_rejects_traversal(self) -> None:
+        with self.assertRaises(worlds.WorldError):
+            worlds.find_thumbnail(self.root, "../x")
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

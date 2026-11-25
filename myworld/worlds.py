@@ -24,6 +24,15 @@ FORMAT_VERSION = 1
 NAME_MAX = 64
 META_NAME = "world.json"
 
+# 世界目录里放这几张图的任意一张，就会当作缩略图
+THUMB_FILENAMES = (
+    "thumbnail.png",
+    "thumbnail.jpg",
+    "thumbnail.jpeg",
+    "thumbnail.webp",
+    "thumbnail.gif",
+)
+
 # Windows 上不能做目录名的保留字
 _RESERVED = {"CON", "PRN", "AUX", "NUL"}
 _RESERVED |= {f"COM{i}" for i in range(1, 10)}
@@ -91,6 +100,25 @@ def _read_created_at(directory: Path) -> str | None:
         return None
     created = data.get("created_at")
     return str(created) if created else None
+
+
+def world_dir(root: Path, raw_name: str) -> Path:
+    """取一个已存在的世界目录；名字非法或世界不存在都会抛 WorldError。"""
+    name = validate_name(raw_name)
+    path = _world_path(root, name)
+    if not path.is_dir():
+        raise WorldError(f"世界「{name}」不存在", status=404)
+    return path
+
+
+def find_thumbnail(root: Path, raw_name: str) -> Path | None:
+    """找世界的缩略图；没有就返回 None（由上层回落到默认图）。"""
+    directory = world_dir(root, raw_name)
+    for filename in THUMB_FILENAMES:
+        candidate = directory / filename
+        if candidate.is_file():
+            return candidate
+    return None
 
 
 def list_worlds(root: Path) -> list[dict[str, Any]]:

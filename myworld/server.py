@@ -18,7 +18,7 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
-from fastapi.responses import JSONResponse
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -27,6 +27,7 @@ from .config import Settings
 from .events import EventBus
 
 WEB_DIR = Path(__file__).resolve().parent.parent / "web"
+DEFAULT_WORLD_THUMB = WEB_DIR / "img" / "world-default.svg"
 logger = logging.getLogger("myworld")
 
 
@@ -149,6 +150,21 @@ def create_app(settings: Settings) -> FastAPI:
             raise HTTPException(status_code=exc.status, detail=str(exc)) from exc
         logger.info("创建世界「%s」→ %s", created["name"], created["path"])
         return created
+
+    @app.get("/api/worlds/{name}/thumbnail", summary="世界缩略图（没有则用默认图）")
+    async def api_world_thumbnail(name: str) -> FileResponse:
+        root = worlds.resolve_root(runtime.settings.data_dir)
+        try:
+            thumb = worlds.find_thumbnail(root, name)
+        except worlds.WorldError as exc:
+            raise HTTPException(status_code=exc.status, detail=str(exc)) from exc
+
+        headers = {"Cache-Control": "no-cache"}
+        if thumb is None:
+            if not DEFAULT_WORLD_THUMB.is_file():
+                raise HTTPException(status_code=500, detail="默认世界图片缺失")
+            return FileResponse(DEFAULT_WORLD_THUMB, media_type="image/svg+xml", headers=headers)
+        return FileResponse(thumb, headers=headers)
 
     @app.websocket("/ws")
     async def ws_endpoint(websocket: WebSocket) -> None:

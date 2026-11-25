@@ -89,6 +89,8 @@
   --radius-lg: 16px;
   --radius-md: 12px;
   --radius-sm: 6px;
+  /* 世界缩略图比例：16 / 9 或 4 / 3 */
+  --world-ratio: 16 / 9;
 }
 
 * {
@@ -451,6 +453,11 @@ body {
 }
 
 /* ---------- 世界面板 ---------- */
+/* 世界列表在上，创建入口固定在所有世界下面 */
+.world-actions {
+  margin-top: 8px;
+}
+
 /* 平时只是一张大圆角卡片，点开才出现输入框 */
 .world-create-card {
   display: flex;
@@ -459,7 +466,7 @@ body {
   gap: 10px;
   width: 100%;
   min-height: 92px;
-  margin-bottom: 14px;
+  margin-bottom: 12px;
   padding: 18px;
   border: 1px solid var(--btn-border);
   border-radius: var(--radius-lg);
@@ -490,7 +497,7 @@ body {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  margin-bottom: 14px;
+  margin-bottom: 0;
   padding: 14px;
   border: 1px solid var(--accent);
   border-radius: var(--radius-lg);
@@ -531,52 +538,63 @@ body {
   line-height: 1.6;
 }
 
-.world-list {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  margin: 0 0 14px;
-  padding: 0;
-  list-style: none;
+/* 每个世界 = 一张比例固定的照片 + 下方名字 */
+.world-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+  margin-bottom: 4px;
 }
 
-.world-item {
+.world-card {
   display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 10px 13px;
+  flex-direction: column;
+  gap: 8px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.world-thumb {
+  overflow: hidden;
+  aspect-ratio: var(--world-ratio);
   border: 1px solid var(--border-soft);
   border-radius: var(--radius-md);
   background: var(--chip-bg);
-  cursor: pointer;
-  transition: border-color 0.15s, background 0.15s, transform 0.1s;
+  transition: border-color 0.15s, box-shadow 0.15s, transform 0.1s;
 }
 
-.world-item:hover {
+.world-thumb img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.world-card:hover .world-thumb {
   border-color: var(--text-faint);
-  background: var(--ghost-hover-bg);
   transform: translateY(-1px);
 }
 
-.world-item.is-selected {
+.world-card.is-selected .world-thumb {
   border-color: var(--accent);
-  background: var(--accent-soft);
+  box-shadow: 0 0 0 2px var(--accent-soft);
+}
+
+.world-card.is-selected .world-name {
+  color: var(--text);
 }
 
 .world-name {
   overflow: hidden;
-  color: var(--text);
+  color: var(--text-dim);
   font-size: var(--fs-small);
   white-space: nowrap;
   text-overflow: ellipsis;
-}
-
-.world-time {
-  flex: none;
-  color: var(--text-faint);
-  font-family: var(--mono);
-  font-size: var(--fs-tiny);
 }
 
 .hint code {

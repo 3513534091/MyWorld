@@ -90,11 +90,16 @@ gcc -O2 -municode -static -static-libgcc -o MyWorld.exe tools\launcher.c
 data/
   示例世界/
     world.json      # {"name": "...", "created_at": "...", "format": 1}
+    thumbnail.png   # 可选：缩略图；没有就用默认图
   第二个世界/
     world.json
 ```
 
-在左侧功能区点「世界」，点那张圆角卡片，输入名字后按「创建」即可；也可以直接调 API。新建的世界会立刻出现在下方列表里，点一下选中。
+在左侧功能区点「世界」：每个世界是一张 **16:9 的图片 + 下方名字**，按名字排序；「创建新世界」固定放在所有世界的下面，点它展开输入框，回车或「创建」即可。新建的世界立刻出现在列表里，点一下选中。
+
+还没有真实图片时，缩略图回落到 `web/img/world-default.svg` 这张默认图。想换图就往世界目录里放一张 `thumbnail.png`（也认 `.jpg / .jpeg / .webp / .gif`），刷新即可，不需要重启服务。
+
+图片比例由 `--world-ratio` 变量控制，想用 4:3 就把它改成 `4 / 3`。
 
 ![世界面板](docs/screenshot-world.png)
 
@@ -117,6 +122,7 @@ data/
 | GET | `/api/events` | 事件总线订阅者数量 |
 | GET | `/api/worlds` | 列出 `data/` 下所有世界 |
 | POST | `/api/worlds` | 创建世界，体 `{"name": "名字"}`；重名 409、非法名 400 |
+| GET | `/api/worlds/{名字}/thumbnail` | 世界缩略图；没有真实图片时返回默认 SVG，世界不存在 404 |
 | POST | `/api/demo/tick` | 向所有已连接页面广播一条事件（验证推送链路） |
 | GET | `/api/docs` | 自动生成的 Swagger 文档 |
 | WS | `/ws` | 心跳与事件推送通道 |
@@ -155,7 +161,8 @@ myworld/
 web/
   index.html           界面结构：顶栏 / 左侧功能区 / 内容面板 / 画布
   css/style.css        明暗两套主题 + 排版刻度（全部是 CSS 变量）
-  js/app.js            状态渲染、WS 连接/心跳/重连、世界列表与创建
+  js/app.js            状态渲染、WS 连接/心跳/重连、世界图库与创建
+  img/world-default.svg 世界缩略图默认图
 data/
   .gitkeep             世界目录（内容不入库）
 tests/
@@ -169,8 +176,8 @@ myworld.config.example.json
 
 ```powershell
 python tests/test_config.py     # 配置与端口逻辑：11 项
-python tests/test_worlds.py     # 世界名字校验与创建列表：11 项
-python tests/smoke_test.py      # 起真实服务，跑 HTTP + WebSocket + 世界 API：18 项
+python tests/test_worlds.py     # 世界名字校验、创建列表、缩略图：15 项
+python tests/smoke_test.py      # 起真实服务，跑 HTTP + WebSocket + 世界 API：20 项
 ```
 
 ## 下一步

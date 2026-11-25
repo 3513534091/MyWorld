@@ -145,29 +145,36 @@
     el.worldEmpty.hidden = items.length > 0;
 
     for (const item of items) {
-      const li = document.createElement("li");
-      li.className = "world-item";
-      li.dataset.name = item.name;
-      if (item.name === selectedWorld) li.classList.add("is-selected");
+      const card = document.createElement("button");
+      card.type = "button";
+      card.className = "world-card";
+      card.dataset.name = item.name;
+      card.title = `${item.name} · ${formatStartTime(item.created_at)}`;
+      if (item.name === selectedWorld) card.classList.add("is-selected");
+
+      const thumb = document.createElement("div");
+      thumb.className = "world-thumb";
+      const img = document.createElement("img");
+      // 后端在没有真实缩略图时返回默认图（web/img/world-default.svg）
+      img.src = `/api/worlds/${encodeURIComponent(item.name)}/thumbnail`;
+      img.alt = item.name;
+      img.loading = "lazy";
+      img.decoding = "async";
+      thumb.append(img);
 
       const name = document.createElement("span");
       name.className = "world-name";
       name.textContent = item.name;
 
-      const time = document.createElement("span");
-      time.className = "world-time";
-      time.textContent = formatStartTime(item.created_at).replace(/:\d{2}$/, "");
-      time.title = item.created_at ?? "";
-
-      li.append(name, time);
-      li.addEventListener("click", () => selectWorld(item, li));
-      el.worldList.append(li);
+      card.append(thumb, name);
+      card.addEventListener("click", () => selectWorld(item, card));
+      el.worldList.append(card);
     }
   }
 
   function selectWorld(item, node) {
     selectedWorld = item.name;
-    el.worldList.querySelectorAll(".world-item").forEach((el2) => {
+    el.worldList.querySelectorAll(".world-card").forEach((el2) => {
       el2.classList.toggle("is-selected", el2 === node);
     });
     el.worldSelected.hidden = false;
@@ -208,7 +215,7 @@
       closeWorldForm();
       selectedWorld = created.name;
       await loadWorlds();
-      const node = el.worldList.querySelector(`[data-name="${CSS.escape(created.name)}"]`);
+      const node = el.worldList.querySelector(`.world-card[data-name="${CSS.escape(created.name)}"]`);
       if (node) selectWorld(created, node);
     } catch (err) {
       showWorldError(err.message);

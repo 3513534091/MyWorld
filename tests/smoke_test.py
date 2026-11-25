@@ -15,6 +15,7 @@ import sys
 import tempfile
 import time
 from pathlib import Path
+from urllib.parse import quote
 
 import aiohttp
 
@@ -135,6 +136,21 @@ async def run_checks(port: int, data_dir: str) -> list[tuple[str, bool, str]]:
             created = await response.json()
             ok = response.status == 201 and created.get("name") == "测试世界"
             checks.append(("POST /api/worlds 创建世界", ok, f"{response.status} {created.get('path')}"))
+
+        thumb_url = f"{base}/api/worlds/{quote('测试世界')}/thumbnail"
+        async with session.get(thumb_url) as response:
+            body = await response.read()
+            content_type = response.headers.get("Content-Type", "")
+            checks.append(
+                (
+                    "无缩略图时回落到默认图片",
+                    response.status == 200 and content_type.startswith("image/svg+xml") and b"<svg" in body,
+                    f"{response.status} {content_type} {len(body)}B",
+                )
+            )
+
+        async with session.get(f"{base}/api/worlds/{quote('不存在的世界')}/thumbnail") as response:
+            checks.append(("未知世界的缩略图返回 404", response.status == 404, str(response.status)))
 
         world_dir = Path(data_dir) / "测试世界"
         checks.append(
