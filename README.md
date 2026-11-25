@@ -4,6 +4,8 @@
 
 当前是 **v0.1.0 骨架版**：端口管理、静态前端、REST 状态接口、WebSocket 心跳/重连/服务端广播链路都已打通，节点画布留在下一步。
 
+![MyWorld 界面](docs/screenshot.png)
+
 ## 快速开始
 
 ```powershell
