@@ -26,7 +26,6 @@
     worldError: $("worldError"),
     worldList: $("worldList"),
     worldEmpty: $("worldEmpty"),
-    worldSelected: $("worldSelected"),
   };
 
   const state = {
@@ -173,6 +172,16 @@
       name.className = "world-name";
       name.textContent = item.name;
 
+      // 选中标记：浅色圆圈 + 对号，盖在暗色蒙版之上（蒙版由 CSS 负责）
+      const check = document.createElement("span");
+      check.className = "world-check";
+      check.setAttribute("aria-hidden", "true");
+      check.innerHTML = `<svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M5.6 12.6l4 4 8.8-9" fill="none" stroke="currentColor"
+              stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" />
+      </svg>`;
+      thumb.append(check);
+
       card.append(thumb, name);
       card.addEventListener("click", () => selectWorld(item, card));
       el.worldList.append(card);
@@ -184,8 +193,6 @@
     el.worldList.querySelectorAll(".world-card").forEach((el2) => {
       el2.classList.toggle("is-selected", el2 === node);
     });
-    el.worldSelected.hidden = false;
-    el.worldSelected.textContent = "已选择：" + item.path;
     debug("选择世界", item);
   }
 

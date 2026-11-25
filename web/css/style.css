@@ -560,12 +560,13 @@ body {
 }
 
 .world-thumb {
+  position: relative;
   overflow: hidden;
   aspect-ratio: var(--world-ratio);
   border: 1px solid var(--border-soft);
   border-radius: var(--radius-md);
   background: var(--chip-bg);
-  transition: border-color 0.15s, box-shadow 0.15s, transform 0.1s;
+  transition: border-color 0.15s, transform 0.1s;
 }
 
 .world-thumb img {
@@ -580,9 +581,49 @@ body {
   transform: translateY(-1px);
 }
 
+/* 选中态：暗色蒙版 + 浅色圆圈对号 */
+.world-thumb::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background: rgba(8, 10, 16, 0.46);
+  opacity: 0;
+  transition: opacity 0.16s ease;
+  pointer-events: none;
+}
+
+.world-card.is-selected .world-thumb::after {
+  opacity: 1;
+}
+
+.world-check {
+  position: absolute;
+  top: 9px;
+  right: 9px;
+  z-index: 1;
+  display: none;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #f3f6fb;
+  color: #241d47;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
+  pointer-events: none;
+}
+
+.world-check svg {
+  width: 13px;
+  height: 13px;
+}
+
+.world-card.is-selected .world-check {
+  display: grid;
+}
+
 .world-card.is-selected .world-thumb {
   border-color: var(--accent);
-  box-shadow: 0 0 0 2px var(--accent-soft);
 }
 
 .world-card.is-selected .world-name {
