@@ -133,3 +133,13 @@ def save_portrait(worlds_root: Path, world_name: str, raw_name: str, data: bytes
     target = directory / f"portrait{ext}"
     target.write_bytes(data)
     return target
+
+
+def delete_character(worlds_root: Path, world_name: str, raw_name: str) -> dict[str, Any]:
+    """删除角色目录（连同立绘等文件）。"""
+    directory = _character_dir(worlds_root, world_name, raw_name)
+    try:
+        shutil.rmtree(directory)
+    except OSError as exc:
+        raise WorldError(f"删除失败：{exc.strerror or exc}") from exc
+    return {"world": world_name, "name": directory.name, "deleted": True}

@@ -39,9 +39,11 @@
     coverPreview: $("coverPreview"),
     coverImg: $("coverImg"),
     coverHint: $("coverHint"),
+    coverHintText: $("coverHintText"),
     coverMeta: $("coverMeta"),
     worldImage: $("worldImage"),
     cropDialog: $("cropDialog"),
+    cropTitle: $("cropTitle"),
     cropFrame: $("cropFrame"),
     cropImage: $("cropImage"),
     cropZoom: $("cropZoom"),
@@ -70,6 +72,7 @@
     ws: null,
     connected: false,
     worlds: [],
+    characters: [],
     reconnectDelay: 1000,
     reconnectMax: 15000,
     heartbeat: null,
@@ -324,6 +327,7 @@
   }
 
   function renderCharacters(items) {
+    state.characters = items;
     el.characterList.replaceChildren();
 
     for (const item of items) {
@@ -382,15 +386,32 @@
   }
 
   function initWorldMenu() {
-    if (!el.worldList || !el.worldMenu) return;
+    if (!el.worldMenu) return;
 
-    el.worldList.addEventListener("contextmenu", (event) => {
-      const card = event.target.closest(".world-card");
-      if (!card) return;
-      event.preventDefault();
-      menuTarget = state.worlds.find((item) => item.name === card.dataset.name) ?? null;
-      if (menuTarget) openWorldMenu(event.clientX, event.clientY);
-    });
+    if (el.worldList) {
+      el.worldList.addEventListener("contextmenu", (event) => {
+        const card = event.target.closest(".world-card");
+        if (!card) return;
+        event.preventDefault();
+        const item = state.worlds.find((entry) => entry.name === card.dataset.name);
+        if (!item) return;
+        menuTarget = { type: "world", item };
+        openWorldMenu(event.clientX, event.clientY);
+      });
+    }
+
+    // 角色卡片用同一套菜单
+    if (el.characterList) {
+      el.characterList.addEventListener("contextmenu", (event) => {
+        const card = event.target.closest(".character-card");
+        if (!card) return;
+        event.preventDefault();
+        const item = state.characters.find((entry) => entry.name === card.dataset.name);
+        if (!item) return;
+        menuTarget = { type: "character", item };
+        openWorldMenu(event.clientX, event.clientY);
+      });
+    }
 
     // 点别处、按 Esc、滚动、改窗口大小都收起菜单
     document.addEventListener("pointerdown", (event) => {
@@ -399,30 +420,44 @@
     document.addEventListener("keydown", (event) => {
       if (event.key === "Escape") closeWorldMenu();
     });
-    el.worldList.addEventListener("scroll", closeWorldMenu, true);
+    el.worldList?.addEventListener("scroll", closeWorldMenu, true);
+    el.characterList?.addEventListener("scroll", closeWorldMenu, true);
     window.addEventListener("resize", closeWorldMenu);
 
     on(el.menuDelete, "click", () => {
       closeWorldMenu();
-      if (menuTarget) requestDeleteWorld(menuTarget);
+      if (menuTarget) requestDelete(menuTarget);
     });
   }
 
-  function requestDeleteWorld(item) {
-    pendingDelete = item;
+  function requestDelete(entry) {
+    pendingDelete = entry;
     if (!el.confirmDialog || !el.confirmText) return;
-    el.confirmText.textContent = `世界「${item.name}」以及它目录里的所有文件都会被删除，无法恢复。`;
+    el.confirmText.textContent =
+      entry.type === "world"
+        ? `世界「${entry.item.name}」以及它目录里的所有文件都会被删除，无法恢复。`
+        : `角色「${entry.item.name}」以及它的立绘等文件都会被删除，无法恢复。`;
     el.confirmDialog.showModal();
     requestAnimationFrame(() => el.btnConfirmOk?.focus());
   }
 
-  async function confirmDeleteWorld() {
+  async function confirmDelete() {
     if (!pendingDelete) return;
-    const item = pendingDelete;
+    const { type, item } = pendingDelete;
+
+    if (type === "character" && !loadedWorld) {
+      if (el.confirmText) el.confirmText.textContent = "世界没有加载，无法删除角色";
+      return;
+    }
+
+    const url =
+      type === "world"
+        ? `/api/worlds/${encodeURIComponent(item.name)}`
+        : `/api/worlds/${encodeURIComponent(loadedWorld.name)}/characters/${encodeURIComponent(item.name)}`;
 
     el.btnConfirmOk.disabled = true;
     try {
-      const response = await fetch(`/api/worlds/${encodeURIComponent(item.name)}`, { method: "DELETE" });
+      const response = await fetch(url, { method: "DELETE" });
       if (!response.ok) {
         let detail = `HTTP ${response.status}`;
         try {
@@ -434,13 +469,18 @@
         throw new Error(detail);
       }
 
-      if (selectedWorld === item.name) clearSelection();
-      if (loadedWorld?.name === item.name) closeLoadedWorld();
-
       pendingDelete = null;
       el.confirmDialog.close();
-      await loadWorlds();
-      debug("删除世界", item);
+
+      if (type === "world") {
+        if (selectedWorld === item.name) clearSelection();
+        if (loadedWorld?.name === item.name) closeLoadedWorld();
+        await loadWorlds();
+        debug("删除世界", item);
+      } else {
+        await loadCharacters();
+        debug("删除角色", item);
+      }
     } catch (err) {
       if (el.confirmText) el.confirmText.textContent = "删除失败：" + err.message;
     } finally {
@@ -480,9 +520,23 @@
     el.createName.value = "";
     clearCreateError();
 
-    // 只有建世界才有封面（选图 + 裁剪）
-    if (el.coverField) el.coverField.hidden = !isWorld;
-    if (isWorld) resetCover();
+    // 世界要 16:9 封面，角色要 9:16 立绘；预设不需要图片
+    const isPortrait = mode === "character";
+    const wantsCover = isWorld || isPortrait;
+
+    if (el.coverField) el.coverField.hidden = !wantsCover;
+    if (wantsCover) resetCover();
+
+    if (el.coverPreview) {
+      el.coverPreview.classList.toggle("is-portrait", isPortrait);
+      el.coverPreview.style.aspectRatio = isPortrait ? "9 / 16" : "16 / 9";
+    }
+    if (el.coverHintText) {
+      el.coverHintText.textContent = isPortrait
+        ? "点击选择本地图片，可裁剪成 9:16 立绘"
+        : "点击选择本地图片，可裁剪成 16:9 封面";
+    }
+
     el.createDialog.classList.toggle("is-wide", isWorld);
 
     el.createDialog.showModal();
@@ -535,6 +589,23 @@
         } catch (err) {
           // 世界已经建好了，封面没存上去：提示一下但不回滚
           showLoadError("封面保存失败：" + err.message);
+        }
+      }
+
+      if (mode === "character" && cover.blob && loadedWorld) {
+        try {
+          const response = await fetch(
+            `/api/worlds/${encodeURIComponent(loadedWorld.name)}/characters/${encodeURIComponent(created.name)}/portrait`,
+            {
+              method: "POST",
+              headers: { "Content-Type": cover.blob.type || "image/jpeg" },
+              body: cover.blob,
+            },
+          );
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        } catch (err) {
+          // 角色已经建好了，立绘没存上去：只记日志
+          debug("角色立绘保存失败", err.message);
         }
       }
 
@@ -627,6 +698,15 @@
     img.onload = () => {
       cover.img = img;
       el.cropImage.src = url;
+
+      // 先把画框比例切好，再量尺寸（角色用 9:16，世界用 16:9）
+      const portrait = createMode === "character";
+      if (el.cropTitle) el.cropTitle.textContent = portrait ? "裁剪立绘" : "裁剪封面";
+      if (el.cropFrame) {
+        el.cropFrame.classList.toggle("is-portrait", portrait);
+        el.cropFrame.style.aspectRatio = portrait ? "9 / 16" : "16 / 9";
+      }
+
       el.cropDialog.showModal();
       requestAnimationFrame(() => {
         if (!el.cropFrame) return;
@@ -659,8 +739,8 @@
     const sourceX = -cover.offset.x / cover.scale;
     const sourceY = -cover.offset.y / cover.scale;
 
-    const targetW = 960;
-    const targetH = Math.round(960 * (cover.frame.h / cover.frame.w));
+    const targetW = cover.frame.w >= cover.frame.h ? 960 : Math.round(1280 * (cover.frame.w / cover.frame.h));
+    const targetH = cover.frame.w >= cover.frame.h ? Math.round(960 * (cover.frame.h / cover.frame.w)) : 1280;
     const canvas = document.createElement("canvas");
     canvas.width = targetW;
     canvas.height = targetH;
@@ -1080,7 +1160,7 @@
   on(el.btnLoadWorld, "click", loadSelectedWorld);
   on(el.btnCloseWorld, "click", closeLoadedWorld);
   initWorldMenu();
-  on(el.btnConfirmOk, "click", confirmDeleteWorld);
+  on(el.btnConfirmOk, "click", confirmDelete);
   on(el.btnConfirmCancel, "click", () => el.confirmDialog?.close());
   on(el.createForm, "submit", (event) => {
     event.preventDefault();

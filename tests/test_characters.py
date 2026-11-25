@@ -72,6 +72,24 @@ class CharacterTests(unittest.TestCase):
             characters.find_portrait(self.worlds_root, "山与海", "阿澈")
         self.assertEqual(ctx.exception.status, 404)
 
+    def test_delete_removes_character(self) -> None:
+        characters.create_character(self.worlds_root, "山与海", "阿澈")
+        result = characters.delete_character(self.worlds_root, "山与海", "阿澈")
+        self.assertTrue(result["deleted"])
+        self.assertFalse((self.worlds_root / "山与海" / "role" / "阿澈").exists())
+        self.assertEqual(characters.list_characters(self.worlds_root, "山与海"), [])
+
+    def test_delete_missing_character_404(self) -> None:
+        with self.assertRaises(worlds.WorldError) as ctx:
+            characters.delete_character(self.worlds_root, "山与海", "阿澈")
+        self.assertEqual(ctx.exception.status, 404)
+
+    def test_delete_rejects_traversal(self) -> None:
+        for bad in ("../x", "a/b", ""):
+            with self.subTest(bad=bad):
+                with self.assertRaises(worlds.WorldError):
+                    characters.delete_character(self.worlds_root, "山与海", bad)
+
     def test_characters_stay_inside_world(self) -> None:
         characters.create_character(self.worlds_root, "山与海", "阿澈")
         # 角色目录应该在世界的 role/ 下，而不是散落在别处

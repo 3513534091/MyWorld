@@ -292,6 +292,27 @@ async def run_checks(port: int, data_dir: str) -> list[tuple[str, bool, str]]:
         async with session.get(f"{base}/api/worlds/{quote('不存在的世界')}/characters") as response:
             checks.append(("不存在世界的角色列表 404", response.status == 404, str(response.status)))
 
+        # 再建一个角色留着，验证它随世界一起被删
+        await session.post(char_base, json={"name": "留置角色"})
+
+        async with session.delete(f"{char_base}/{quote('测试角色')}") as response:
+            body = await response.json()
+            checks.append(
+                (
+                    "DELETE 删除角色",
+                    response.status == 200 and body.get("deleted") is True,
+                    f"{response.status} {body.get('name')}",
+                )
+            )
+
+        async with session.get(char_base) as response:
+            listing = await response.json()
+            names = [item["name"] for item in listing.get("items", [])]
+            checks.append(("删除后角色列表只剩下留置角色", names == ["留置角色"], str(names)))
+
+        async with session.delete(f"{char_base}/{quote('测试角色')}") as response:
+            checks.append(("删除不存在的角色返回 404", response.status == 404, str(response.status)))
+
         # ---- 删除世界（放在世界相关断言之后，否则会把后面要用的目录删掉） ----
         async with session.delete(f"{base}/api/worlds/{quote('测试世界')}") as response:
             body = await response.json()

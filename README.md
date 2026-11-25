@@ -171,6 +171,10 @@ data/山与海/
 
 默认立绘也有深浅两版，切主题自动换；想换自己的立绘用 `POST /api/worlds/{世界}/characters/{角色}/portrait`（PNG/JPEG/WebP，≤5 MB）。
 
+新建角色时就能顺手导入立绘：点虚线框选一张本地图片，会弹出 **9:16 裁剪**窗口（拖动平移、滑杆缩放、九宫格参考），确定后随角色一起上传。在角色卡上**右键**可以删除该角色（连同立绘等文件，确认后不可恢复）。
+
+![裁剪角色立绘](docs/screenshot-crop-portrait.png)
+
 ![角色图库](docs/screenshot-characters.png)
 
 ## 接口
@@ -189,6 +193,7 @@ data/山与海/
 | POST | `/api/presets` | 创建预设，体 `{"name": "名字"}`；重名 409、非法名 400 |
 | GET | `/api/worlds/{世界}/characters` | 列出某个世界的角色 |
 | POST | `/api/worlds/{世界}/characters` | 新建角色，体 `{"name": "名字"}`；重名 409 |
+| DELETE | `/api/worlds/{世界}/characters/{角色}` | 删除角色（连同立绘）；不存在 404 |
 | GET | `/api/worlds/{世界}/characters/{角色}/portrait` | 角色立绘；没有则按 `?theme=` 返回默认图 |
 | POST | `/api/worlds/{世界}/characters/{角色}/portrait` | 上传立绘（PNG/JPEG/WebP，≤5 MB） |
 | POST | `/api/demo/tick` | 向所有已连接页面广播一条事件（验证推送链路） |
@@ -254,9 +259,9 @@ myworld.config.example.json
 ```powershell
 python tests/test_config.py     # 配置与端口逻辑：11 项
 python tests/test_worlds.py     # 世界名字校验、创建列表、缩略图、删除：18 项
-python tests/test_characters.py # 角色创建、重名、立绘、目录归属：7 项
+python tests/test_characters.py # 角色创建、重名、立绘、删除、目录归属：11 项
 python tests/test_presets.py    # 预设创建、名字规则、不混入世界列表：5 项
-python tests/smoke_test.py      # 起真实服务，跑 HTTP + WebSocket + 世界/角色/预设 API：45 项
+python tests/smoke_test.py      # 起真实服务，跑 HTTP + WebSocket + 世界/角色/预设 API：48 项
 ```
 
 ## 下一步

@@ -250,6 +250,16 @@ def create_app(settings: Settings) -> FastAPI:
         logger.info("更新角色立绘「%s/%s」→ %s（%.1f KB）", world, name, target.name, len(data) / 1024)
         return {"world": world, "name": name, "portrait": target.name, "bytes": len(data)}
 
+    @app.delete("/api/worlds/{world}/characters/{name}", summary="删除角色")
+    async def api_delete_character(world: str, name: str) -> dict[str, Any]:
+        root = worlds.resolve_root(runtime.settings.data_dir)
+        try:
+            result = characters.delete_character(root, world, name)
+        except worlds.WorldError as exc:
+            raise HTTPException(status_code=exc.status, detail=str(exc)) from exc
+        logger.info("删除角色「%s/%s」", world, result["name"])
+        return result
+
     @app.get("/api/presets", summary="列出所有预设")
     async def api_presets() -> dict[str, Any]:
         root = presets.resolve_root(worlds.resolve_root(runtime.settings.data_dir))
