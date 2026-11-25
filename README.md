@@ -39,6 +39,7 @@ python -m pip install -r requirements.txt
 | 强制 UTF-8 | 设置 `PYTHONUTF8=1`、`PYTHONIOENCODING=utf-8`，控制台与重定向文件都不会乱码 |
 | 透传参数与退出码 | `--port` 等参数原样转发；Python 返回几，exe 就返回几（实测非法端口返回 2） |
 | 自动开浏览器 | 挂在交互式控制台上（双击或终端里直接跑）时，服务启动即打开工作台；`--no-open` 可关，重定向场景不会打扰 |
+| 日志去向 | 服务端事件、uvicorn 启动信息统一打在这个控制台窗口；网页端只做界面，不放日志面板 |
 | Ctrl+C 处理 | 启动器自己忽略 Ctrl+C，交给 uvicorn 优雅关闭，避免留下孤儿进程 |
 
 改了 `launcher.c` 之后重新构建：
@@ -111,7 +112,7 @@ myworld/
 web/
   index.html           界面结构
   css/style.css        深色主题
-  js/app.js            状态渲染、WS 连接/心跳/重连、日志面板
+  js/app.js            状态渲染、WS 连接/心跳/重连（日志在控制台，页面不放日志）
 tests/
   test_config.py       配置解析单元测试（纯标准库）
   smoke_test.py        端到端冒烟测试（真实进程 + REST + WS）

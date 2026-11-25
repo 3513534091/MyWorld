@@ -1,4 +1,6 @@
-/* MyWorld 前端：状态展示 + WebSocket 通道 + 事件日志。
+/* MyWorld 前端：状态展示 + WebSocket 通道。
+ * 页面不放日志面板 —— 运行日志统一由控制台输出；
+ * 这里只在浏览器 DevTools 里留 console.debug，便于排查。
  * 无构建步骤，浏览器直接加载。 */
 
 (() => {
@@ -12,14 +14,10 @@
     pill: $("connPill"),
     pillText: $("pillText"),
     meta: $("meta"),
-    log: $("log"),
     uptime: $("uptime"),
     btnPing: $("btnPing"),
     btnTick: $("btnTick"),
-    btnClear: $("btnClear"),
   };
-
-  const MAX_LOG_ROWS = 400;
 
   const state = {
     ws: null,
@@ -34,31 +32,8 @@
     status: null,
   };
 
-  // ---------------- 日志 ----------------
-
-  function log(level, text) {
-    const row = document.createElement("div");
-    row.className = "log-row log-" + level;
-
-    const time = document.createElement("span");
-    time.className = "log-time";
-    time.textContent = new Date().toLocaleTimeString("zh-CN", { hour12: false });
-
-    const tag = document.createElement("span");
-    tag.className = "log-tag";
-    tag.textContent = level.toUpperCase();
-
-    const body = document.createElement("span");
-    body.className = "log-text";
-    body.textContent = text;
-
-    row.append(time, tag, body);
-    el.log.append(row);
-    while (el.log.childElementCount > MAX_LOG_ROWS) {
-      el.log.removeChild(el.log.firstElementChild);
-    }
-    el.log.scrollTop = el.log.scrollHeight;
-  }
+  // DevTools 里的调试输出，不影响页面
+  const debug = (...args) => console.debug("[myworld]", ...args);
 
   // ---------------- 连接状态 ----------------
 
@@ -72,7 +47,7 @@
       state.ws.send(JSON.stringify(payload));
       return true;
     }
-    log("warn", "未连接，消息未发送：" + payload.type);
+    debug("未连接，消息未发送", payload);
     return false;
   }
 
@@ -81,7 +56,7 @@
   function connect() {
     const proto = location.protocol === "https:" ? "wss:" : "ws:";
     const url = `${proto}//${location.host}/ws`;
-    log("info", "正在连接 " + url);
+    debug("连接中", url);
 
     const ws = new WebSocket(url);
     state.ws = ws;
@@ -90,7 +65,6 @@
       state.connected = true;
       state.reconnectDelay = 1000;
       setConnection("on", "已连接");
-      log("ok", "WebSocket 已建立");
       startHeartbeat();
     };
 
@@ -99,23 +73,19 @@
       try {
         msg = JSON.parse(event.data);
       } catch {
-        log("warn", "收到非 JSON 消息：" + String(event.data).slice(0, 120));
+        debug("收到非 JSON 消息", event.data);
         return;
       }
       handle(msg);
     };
 
-    ws.onerror = () => log("warn", "WebSocket 异常（细节见浏览器控制台）");
+    ws.onerror = () => debug("WebSocket 异常");
 
     ws.onclose = (event) => {
-      const wasConnected = state.connected;
       state.connected = false;
       stopHeartbeat();
       setConnection("off", "重连中");
-      log("warn", `连接断开 code=${event.code}${event.reason ? " reason=" + event.reason : ""}`);
-      if (wasConnected) {
-        log("info", `将在 ${(state.reconnectDelay / 1000).toFixed(1)}s 后重连`);
-      }
+      debug("断开", event.code, "将于", state.reconnectDelay, "ms 后重连");
       scheduleReconnect();
     };
   }
@@ -153,7 +123,7 @@
         state.syncedAt = performance.now();
         el.version.textContent = "v" + (msg.version || "?");
         el.port.textContent = msg.port ?? "—";
-        log("ok", `握手成功：版本 ${msg.version}，pid ${msg.pid}，端口 ${msg.port}`);
+        debug("握手成功", msg);
         break;
 
       case "pong": {
@@ -167,29 +137,28 @@
       }
 
       case "tick":
-        log("info", "收到服务端广播 tick");
+        debug("收到服务端推送", msg);
         refreshStatus();
         break;
 
       case "broadcast":
-        log("info", "收到广播：" + JSON.stringify(msg.payload));
+        debug("收到广播", msg.payload);
         break;
 
       case "ack":
-        log("ok", `广播已送达 ${msg.delivered} 个连接`);
+        debug("广播已送达", msg.delivered);
         break;
 
       case "stats":
         fillMeta(msg);
-        log("info", "状态已刷新");
         break;
 
       case "error":
-        log("error", "服务端错误：" + msg.message);
+        debug("服务端错误", msg.message);
         break;
 
       default:
-        log("info", `未知事件 ${msg.kind}：${JSON.stringify(msg)}`);
+        debug("未知事件", msg);
     }
   }
 
@@ -212,21 +181,17 @@
         state.syncedAt = performance.now();
       }
     } catch (err) {
-      log("error", "读取状态失败：" + err.message);
+      debug("读取状态失败", err.message);
     }
   }
 
   async function loadConfig() {
     try {
       state.config = await fetchJSON("/api/config");
-      const sources = Object.entries(state.config.sources || {})
-        .map(([key, value]) => `${key}=${value}`)
-        .join("  ");
-      log("info", "配置来源：" + sources);
-      // 状态可能先到，配置后到：补一次渲染，保证「端口来源」有值
+      // 状态可能先到、配置后到：补一次渲染，保证「端口来源」有值
       if (state.status) fillMeta(state.status);
     } catch (err) {
-      log("error", "读取配置失败：" + err.message);
+      debug("读取配置失败", err.message);
     }
   }
 
@@ -277,26 +242,20 @@
   // ---------------- 交互 ----------------
 
   el.btnPing.addEventListener("click", () => {
-    if (send({ type: "ping", t: Date.now() })) log("info", "已发送 ping");
+    if (send({ type: "ping", t: Date.now() })) debug("已发送 ping");
   });
 
   el.btnTick.addEventListener("click", async () => {
     try {
       const result = await fetchJSON("/api/demo/tick", { method: "POST" });
-      log("ok", `已触发服务端广播，送达 ${result.delivered} 个连接`);
+      debug("已触发服务端推送", result);
     } catch (err) {
-      log("error", "广播失败：" + err.message);
+      debug("推送失败", err.message);
     }
-  });
-
-  el.btnClear.addEventListener("click", () => {
-    el.log.replaceChildren();
-    log("info", "日志已清空");
   });
 
   // ---------------- 启动 ----------------
 
-  log("info", "MyWorld 前端启动：" + location.href);
   refreshStatus();
   loadConfig();
   connect();

@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import os
 import platform
 import time
@@ -25,6 +26,7 @@ from .config import Settings
 from .events import EventBus
 
 WEB_DIR = Path(__file__).resolve().parent.parent / "web"
+logger = logging.getLogger("myworld")
 
 
 def display_host(host: str) -> str:
@@ -123,6 +125,7 @@ def create_app(settings: Settings) -> FastAPI:
     @app.post("/api/demo/tick", summary="向所有已连接页面广播一条 tick")
     async def api_tick() -> dict[str, Any]:
         delivered = runtime.bus.publish({"kind": "tick", "source": "http"})
+        logger.info("模拟推送 tick → 送达 %d 个连接", delivered)
         return {"ok": True, "delivered": delivered, "subscribers": runtime.bus.subscribers}
 
     @app.websocket("/ws")
@@ -132,6 +135,7 @@ def create_app(settings: Settings) -> FastAPI:
         runtime.clients += 1
         runtime.max_clients = max(runtime.max_clients, runtime.clients)
         pump_task = asyncio.create_task(_pump(websocket, queue))
+        logger.info("页面已连接 · 当前 %d 个客户端", runtime.clients)
         try:
             await websocket.send_json(
                 {
@@ -156,6 +160,7 @@ def create_app(settings: Settings) -> FastAPI:
 
                 kind = message.get("type")
                 if kind == "ping":
+                    logger.debug("心跳 ping t=%s", message.get("t"))
                     await websocket.send_json(
                         {
                             "kind": "pong",
@@ -167,6 +172,7 @@ def create_app(settings: Settings) -> FastAPI:
                 elif kind == "broadcast":
                     payload = message.get("payload")
                     delivered = runtime.bus.publish({"kind": "broadcast", "source": "ws", "payload": payload})
+                    logger.info("页面广播 → 送达 %d 个连接", delivered)
                     await websocket.send_json({"kind": "ack", "delivered": delivered})
                 elif kind == "stats":
                     await websocket.send_json({"kind": "stats", **runtime.status()})
@@ -182,6 +188,7 @@ def create_app(settings: Settings) -> FastAPI:
                 pass
             runtime.clients -= 1
             runtime.bus.unsubscribe(token)
+            logger.info("页面已断开 · 剩余 %d 个客户端", runtime.clients)
 
     if WEB_DIR.is_dir():
         # 注意：静态挂载放最后，否则会抢走 /api 与 /ws 的匹配

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import logging
 import sys
 import threading
 import webbrowser
@@ -29,6 +30,32 @@ def _ensure_utf8_console() -> None:
             stream.reconfigure(encoding="utf-8", errors="replace")
         except (AttributeError, ValueError):
             pass
+
+
+def _configure_logging(level: str) -> None:
+    """统一日志格式，全部打到控制台（也就是启动器那个窗口）。
+
+    uvicorn 也用同一套格式：调用 uvicorn.run 时传 log_config=None，
+    让它不要另装 handler，日志顺着 root logger 走。
+    """
+
+    class _DropNoise(logging.Filter):
+        """uvicorn 每次 WS 握手都会打 connection open/closed，与我们的日志重复。"""
+
+        noise = {"connection open", "connection closed"}
+
+        def filter(self, record: logging.LogRecord) -> bool:
+            return record.getMessage().strip() not in self.noise
+
+    logging.basicConfig(
+        level=getattr(logging, level.upper(), logging.INFO),
+        format="[%(asctime)s] %(levelname)-7s %(message)s",
+        datefmt="%H:%M:%S",
+        force=True,
+    )
+    # 第三方库的流水账压到 WARNING，控制台只留 MyWorld 自己的事件
+    logging.getLogger("websockets").setLevel(logging.WARNING)
+    logging.getLogger("uvicorn.error").addFilter(_DropNoise())
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -71,6 +98,8 @@ def main(argv: list[str] | None = None) -> int:
 
     url = f"http://{display_host(settings.host)}:{settings.port}"
 
+    _configure_logging(settings.log_level)
+
     print(BANNER)
     print(f"  MyWorld v{__version__}   ·   {url}")
     if settings.port_shifted:
@@ -93,8 +122,9 @@ def main(argv: list[str] | None = None) -> int:
             host=settings.host,
             port=settings.port,
             log_level=settings.log_level,
+            log_config=None,  # 用上面 basicConfig 的格式，uvicorn 日志不再另起一套
             access_log=settings.log_level == "debug",
-            ws="websockets",
+            ws="auto",
         )
     except KeyboardInterrupt:
         pass

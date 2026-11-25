@@ -35,8 +35,11 @@
       </p>
       <p class="hint">
         <b>Ping</b> 是心跳，用来探活并测出延迟；<b>模拟服务端推送</b> 用来验证
-        「后端 → 页面」这条单向推送通道 —— 之后执行进度、队列变化都从这里推过来，
-        页面永远不需要轮询。
+        「后端 → 页面」这条单向推送通道 —— 之后执行进度、队列变化都从这里推过来。
+      </p>
+      <p class="hint">
+        运行日志打在启动它的控制台窗口里（双击 MyWorld.exe 弹出的那个），
+        网页只负责界面。
       </p>
     </aside>
 
@@ -49,14 +52,6 @@
       <div class="canvas-badge" id="uptime">运行 00:00:00</div>
     </section>
   </main>
-
-  <section class="console">
-    <div class="console-head">
-      <span>事件日志</span>
-      <button class="btn ghost small" id="btnClear">清空</button>
-    </div>
-    <div class="console-body" id="log"></div>
-  </section>
 
   <script src="/js/app.js"></script>
 </body>
