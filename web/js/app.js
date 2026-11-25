@@ -788,6 +788,17 @@
       });
     }
 
+    // 预设卡片：只有删除
+    if (el.presetList) {
+      el.presetList.addEventListener("contextmenu", (event) => {
+        const row = event.target.closest(".preset-item");
+        if (!row) return;
+        event.preventDefault();
+        menuTarget = { type: "preset", item: { name: row.dataset.name } };
+        openWorldMenu(event.clientX, event.clientY);
+      });
+    }
+
     // 点别处、按 Esc、滚动、改窗口大小都收起菜单
     document.addEventListener("pointerdown", (event) => {
       if (!el.worldMenu.hidden && !el.worldMenu.contains(event.target)) closeWorldMenu();
@@ -797,6 +808,7 @@
     });
     el.worldList?.addEventListener("scroll", closeWorldMenu, true);
     el.characterList?.addEventListener("scroll", closeWorldMenu, true);
+    el.presetList?.addEventListener("scroll", closeWorldMenu, true);
     window.addEventListener("resize", closeWorldMenu);
 
     on(el.menuRestoreDefault, "click", () => {
@@ -818,10 +830,13 @@
   function requestDelete(entry) {
     pendingDelete = entry;
     if (!el.confirmDialog || !el.confirmText) return;
-    el.confirmText.textContent =
-      entry.type === "world"
-        ? `世界「${entry.item.name}」以及它目录里的所有文件都会被删除，无法恢复。`
-        : `角色「${entry.item.name}」以及它的立绘等文件都会被删除，无法恢复。`;
+
+    const texts = {
+      world: `世界「${entry.item.name}」以及它目录里的所有文件都会被删除，无法恢复。`,
+      character: `角色「${entry.item.name}」以及它的立绘等文件都会被删除，无法恢复。`,
+      preset: `预设「${entry.item.name}」以及它保存的属性都会被删除，无法恢复。`,
+    };
+    el.confirmText.textContent = texts[entry.type] ?? `「${entry.item.name}」会被删除，无法恢复。`;
     el.confirmDialog.showModal();
     requestAnimationFrame(() => el.btnConfirmOk?.focus());
   }
@@ -835,10 +850,14 @@
       return;
     }
 
-    const url =
-      type === "world"
-        ? `/api/worlds/${encodeURIComponent(item.name)}`
-        : `/api/worlds/${encodeURIComponent(loadedWorld.name)}/characters/${encodeURIComponent(item.name)}`;
+    let url;
+    if (type === "world") {
+      url = `/api/worlds/${encodeURIComponent(item.name)}`;
+    } else if (type === "preset") {
+      url = `/api/presets/${encodeURIComponent(item.name)}`;
+    } else {
+      url = `/api/worlds/${encodeURIComponent(loadedWorld.name)}/characters/${encodeURIComponent(item.name)}`;
+    }
 
     el.btnConfirmOk.disabled = true;
     try {
@@ -862,6 +881,10 @@
         if (loadedWorld?.name === item.name) closeLoadedWorld();
         await loadWorlds();
         debug("删除世界", item);
+      } else if (type === "preset") {
+        await loadPresets();
+        toast(`预设「${item.name}」已删除`);
+        debug("删除预设", item);
       } else {
         if (currentDetailName === item.name) closeCharacterPanel();
         await loadCharacters();

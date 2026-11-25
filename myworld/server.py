@@ -351,6 +351,16 @@ def create_app(settings: Settings) -> FastAPI:
         )
         return created
 
+    @app.delete("/api/presets/{name}", summary="删除预设")
+    async def api_delete_preset(name: str) -> dict[str, Any]:
+        root = presets.resolve_root(worlds.resolve_root(runtime.settings.data_dir))
+        try:
+            result = presets.delete_preset(root, name)
+        except worlds.WorldError as exc:
+            raise HTTPException(status_code=exc.status, detail=str(exc)) from exc
+        logger.info("删除预设「%s」", result["name"])
+        return result
+
     @app.post("/api/worlds/{name}/thumbnail", summary="上传（裁剪后的）世界封面")
     async def api_upload_thumbnail(name: str, request: Request) -> dict[str, Any]:
         root = worlds.resolve_root(runtime.settings.data_dir)

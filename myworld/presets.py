@@ -12,6 +12,7 @@
 from __future__ import annotations
 
 import json
+import shutil
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -98,3 +99,17 @@ def create_preset(root: Path, raw_name: str, attributes: Any = None) -> dict[str
         "path": f"presets/{name}",
         "attributes": normalized,
     }
+
+
+def delete_preset(root: Path, raw_name: str) -> dict[str, Any]:
+    """删除预设目录（连同 preset.json）。"""
+    name = validate_name(raw_name)
+    path = _preset_path(root, name)
+    if not path.is_dir():
+        raise WorldError(f"预设「{name}」不存在", status=404)
+
+    try:
+        shutil.rmtree(path)
+    except OSError as exc:
+        raise WorldError(f"删除失败：{exc.strerror or exc}") from exc
+    return {"name": name, "deleted": True, "path": f"presets/{name}"}

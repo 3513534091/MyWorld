@@ -90,6 +90,24 @@ class PresetTests(unittest.TestCase):
         )
         self.assertEqual(len(created["attributes"]), 2)
 
+    def test_delete_removes_directory(self) -> None:
+        presets.create_preset(self.root, "待删除", [{"label": "年龄", "value": "17"}])
+        result = presets.delete_preset(self.root, "待删除")
+        self.assertTrue(result["deleted"])
+        self.assertFalse((self.root / "待删除").exists())
+        self.assertEqual(presets.list_presets(self.root), [])
+
+    def test_delete_missing_returns_404(self) -> None:
+        with self.assertRaises(worlds.WorldError) as ctx:
+            presets.delete_preset(self.root, "不存在")
+        self.assertEqual(ctx.exception.status, 404)
+
+    def test_delete_rejects_traversal(self) -> None:
+        for bad in ("../x", "a/b", ""):
+            with self.subTest(bad=bad):
+                with self.assertRaises(worlds.WorldError):
+                    presets.delete_preset(self.root, bad)
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

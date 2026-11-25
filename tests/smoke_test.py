@@ -496,6 +496,26 @@ async def run_checks(port: int, data_dir: str) -> list[tuple[str, bool, str]]:
             names = [item["name"] for item in listing.get("items", [])]
             checks.append(("预设不会混进世界列表", "测试预设" not in names, str(names)))
 
+        # ---- 删除预设 ----
+        async with session.delete(f"{base}/api/presets/{quote('测试预设')}") as response:
+            body = await response.json()
+            checks.append(
+                (
+                    "DELETE /api/presets 删除预设",
+                    response.status == 200 and body.get("deleted") is True,
+                    str(body.get("name")),
+                )
+            )
+
+        checks.append(("预设目录已删除", not preset_dir.exists(), str(preset_dir)))
+
+        async with session.get(base + "/api/presets") as response:
+            listing = await response.json()
+            checks.append(("删除后预设列表为空", listing.get("items") == [], str(listing.get("items"))))
+
+        async with session.delete(f"{base}/api/presets/{quote('测试预设')}") as response:
+            checks.append(("删除不存在的预设返回 404", response.status == 404, str(response.status)))
+
     return checks
 
 

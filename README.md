@@ -162,6 +162,8 @@ presets/
 
 在左侧功能区点「预设」，点底部的 **「创建新预设」**，在弹窗里填名字和若干「属性名 / 值」行即可（「＋ 添加属性」可以继续加）。预设和世界共用一套名字规则（长度、非法字符、Windows 保留名等），重名返回 409。预设列表里每项会显示「N 条属性」，鼠标悬停能看到具体内容。
 
+在预设行上**右键**可以删除该预设（目录连同 `preset.json` 一起删掉，确认后不可恢复）。
+
 ![创建预设](docs/screenshot-preset-dialog.png)
 
 ![预设面板](docs/screenshot-presets.png)
@@ -218,6 +220,7 @@ data/山与海/
 | POST | `/api/worlds/{名字}/thumbnail` | 上传封面（裁剪后的原图字节，PNG/JPEG/WebP，≤5 MB）；非图片 400、太大 413 |
 | GET | `/api/presets` | 列出 `presets/` 下所有预设 |
 | POST | `/api/presets` | 创建预设，体 `{"name": "名字", "attributes": [{"label": "...", "value": "..."}]}`；重名 409、非法名 400 |
+| DELETE | `/api/presets/{预设}` | 删除预设目录；不存在 404 |
 | GET | `/api/worlds/{世界}/characters` | 列出某个世界的角色 |
 | POST | `/api/worlds/{世界}/characters` | 新建角色，体 `{"name": "名字"}`；重名 409 |
 | DELETE | `/api/worlds/{世界}/characters/{角色}` | 删除角色（连同立绘）；不存在 404 |
@@ -291,8 +294,8 @@ myworld.config.example.json
 python tests/test_config.py     # 配置与端口逻辑：11 项
 python tests/test_worlds.py     # 世界名字校验、创建列表、缩略图、删除：18 项
 python tests/test_characters.py # 角色创建、重名、立绘、删除、顺序、改名、属性：17 项
-python tests/test_presets.py    # 预设创建、属性内容、名字规则、不混入世界列表：8 项
-python tests/smoke_test.py      # 起真实服务，跑 HTTP + WebSocket + 世界/角色/预设 API：62 项
+python tests/test_presets.py    # 预设创建、属性内容、名字规则、删除、不混入世界列表：11 项
+python tests/smoke_test.py      # 起真实服务，跑 HTTP + WebSocket + 世界/角色/预设 API：66 项
 ```
 
 ## 下一步
