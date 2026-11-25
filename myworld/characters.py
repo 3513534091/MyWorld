@@ -1,19 +1,22 @@
 """角色管理。
 
-一个角色属于某个世界，是世界目录下的一个子目录：
+一个角色属于某个世界，存在世界目录下的 `role/` 里：
 
     data/
       山与海/
         world.json
-        characters/
+        role/
           阿澈/
             character.json
             portrait.png      # 可选，9:16 立绘；没有就用默认图
+
+早期版本用的是 `characters/`，读取时若发现旧目录会自动改名迁移成 `role/`。
 """
 
 from __future__ import annotations
 
 import json
+import shutil
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -21,7 +24,8 @@ from typing import Any
 from .worlds import WorldError, validate_name, world_dir
 
 FORMAT_VERSION = 1
-DIR_NAME = "characters"
+DIR_NAME = "role"
+LEGACY_DIR_NAME = "characters"
 META_NAME = "character.json"
 PORTRAIT_FILENAMES = (
     "portrait.png",
@@ -32,8 +36,18 @@ PORTRAIT_FILENAMES = (
 
 
 def _root(worlds_root: Path, world_name: str) -> Path:
-    """世界的角色目录（不存在就建）。"""
-    directory = world_dir(worlds_root, world_name) / DIR_NAME
+    """世界的角色目录（不存在就建；旧的 characters/ 会自动改名过来）。"""
+    world_path = world_dir(worlds_root, world_name)
+    directory = world_path / DIR_NAME
+    legacy = world_path / LEGACY_DIR_NAME
+
+    if not directory.exists() and legacy.is_dir():
+        try:
+            shutil.move(str(legacy), str(directory))
+        except OSError:
+            # 改名失败就继续用旧的，至少不丢数据
+            directory = legacy
+
     directory.mkdir(parents=True, exist_ok=True)
     return directory
 

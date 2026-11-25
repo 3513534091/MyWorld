@@ -156,16 +156,18 @@ presets/
 
 先在「世界」里选中一个世界点「加载」，画布区就会切成该世界的角色图库：每个角色是一张 **9:16 立绘 + 下方名字**，按名字排序；最后那张虚线卡片是「新建角色」，点它在弹窗里输入名字即可。还没加载世界时，这一栏会提示先去左侧加载。
 
-角色属于世界，存在世界目录下：
+角色属于世界，存在世界目录下的 `role/` 里：
 
 ```
 data/山与海/
   world.json
-  characters/
+  role/
     阿澈/
       character.json
       portrait.png   # 可选，没有就用默认立绘
 ```
+
+（早期版本用的是 `characters/`，程序读到旧目录会自动改名迁移成 `role/`，不会丢角色。）
 
 默认立绘也有深浅两版，切主题自动换；想换自己的立绘用 `POST /api/worlds/{世界}/characters/{角色}/portrait`（PNG/JPEG/WebP，≤5 MB）。
 
@@ -224,7 +226,7 @@ myworld/
   events.py            进程内事件总线（发布 → 多个 WS 订阅者）
   server.py            FastAPI 应用：REST + WebSocket + 静态托管
   worlds.py            世界管理：名字校验、创建、列表（data/ 目录）
-  characters.py        角色管理：每个世界下的 characters/ 子目录
+  characters.py        角色管理：每个世界下的 role/ 子目录
   presets.py           预设管理：同样的名字规则，存 presets/ 目录
 web/
   index.html           界面结构：顶栏 / 左侧功能区 / 内容面板 / 二级顶栏 / 画布

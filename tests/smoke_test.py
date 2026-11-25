@@ -247,12 +247,12 @@ async def run_checks(port: int, data_dir: str) -> list[tuple[str, bool, str]]:
             checks.append(
                 (
                     "POST 新建角色",
-                    response.status == 201 and created_char.get("path") == "data/测试世界/characters/测试角色",
+                    response.status == 201 and created_char.get("path") == "data/测试世界/role/测试角色",
                     f"{response.status} {created_char.get('path')}",
                 )
             )
 
-        char_dir = Path(data_dir) / "测试世界" / "characters" / "测试角色"
+        char_dir = Path(data_dir) / "测试世界" / "role" / "测试角色"
         checks.append(("角色目录与 character.json 已生成", (char_dir / "character.json").is_file(), str(char_dir)))
 
         async with session.get(char_base) as response:
@@ -314,8 +314,8 @@ async def run_checks(port: int, data_dir: str) -> list[tuple[str, bool, str]]:
         checks.append(
             (
                 "角色随世界目录一起删除",
-                not (Path(data_dir) / "测试世界" / "characters").exists(),
-                "characters/ 已不存在",
+                not (Path(data_dir) / "测试世界" / "role").exists(),
+                "role/ 已不存在",
             )
         )
 

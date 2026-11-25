@@ -29,9 +29,9 @@ class CharacterTests(unittest.TestCase):
 
     def test_create_and_list(self) -> None:
         created = characters.create_character(self.worlds_root, "山与海", "阿澈")
-        self.assertEqual(created["path"], "data/山与海/characters/阿澈")
+        self.assertEqual(created["path"], "data/山与海/role/阿澈")
 
-        meta_path = self.worlds_root / "山与海" / "characters" / "阿澈" / "character.json"
+        meta_path = self.worlds_root / "山与海" / "role" / "阿澈" / "character.json"
         self.assertTrue(meta_path.is_file())
         meta = json.loads(meta_path.read_text(encoding="utf-8"))
         self.assertEqual(meta["name"], "阿澈")
@@ -74,10 +74,20 @@ class CharacterTests(unittest.TestCase):
 
     def test_characters_stay_inside_world(self) -> None:
         characters.create_character(self.worlds_root, "山与海", "阿澈")
-        # 角色目录应该在世界的 characters/ 下，而不是散落在别处
+        # 角色目录应该在世界的 role/ 下，而不是散落在别处
         base = self.worlds_root / "山与海"
         entries = {p.name for p in base.iterdir()}
-        self.assertEqual(entries, {"world.json", "characters"})
+        self.assertEqual(entries, {"world.json", "role"})
+
+    def test_legacy_characters_dir_is_migrated(self) -> None:
+        legacy = self.worlds_root / "山与海" / "characters"
+        (legacy / "旧角色").mkdir(parents=True)
+        (legacy / "旧角色" / "character.json").write_text('{"name": "旧角色"}', encoding="utf-8")
+
+        names = [item["name"] for item in characters.list_characters(self.worlds_root, "山与海")]
+        self.assertEqual(names, ["旧角色"])
+        self.assertFalse(legacy.exists())
+        self.assertTrue((self.worlds_root / "山与海" / "role" / "旧角色").is_dir())
 
 
 if __name__ == "__main__":
