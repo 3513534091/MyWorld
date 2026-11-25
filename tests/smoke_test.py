@@ -38,9 +38,29 @@ async def wait_ready(session: aiohttp.ClientSession, base: str, timeout: float =
     raise RuntimeError("服务未在超时内就绪")
 
 
+def check_launcher() -> tuple[str, bool, str]:
+    """原生启动器存在且能正确报告版本。"""
+    exe = ROOT / "MyWorld.exe"
+    if not exe.is_file():
+        return ("MyWorld.exe 存在", False, f"缺失：{exe}")
+    try:
+        proc = subprocess.run(
+            [str(exe), "--version"],
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            timeout=60,
+        )
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        return ("MyWorld.exe --version", False, f"{type(exc).__name__}: {exc}")
+    output = (proc.stdout or proc.stderr or "").strip()
+    return ("MyWorld.exe --version", proc.returncode == 0 and "MyWorld" in output, output)
+
+
 async def run_checks(port: int) -> list[tuple[str, bool, str]]:
     base = f"http://127.0.0.1:{port}"
-    checks: list[tuple[str, bool, str]] = []
+    checks: list[tuple[str, bool, str]] = [check_launcher()]
 
     async with aiohttp.ClientSession() as session:
         status = await wait_ready(session, base)
