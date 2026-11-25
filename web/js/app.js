@@ -678,16 +678,44 @@
     }
   }
 
-  function setCoverZoom(percent) {
+  function setCoverZoom(percent, anchor) {
     if (!cover.img) return;
-    // 以画面中心为锚点缩放
-    const cx = (cover.frame.w / 2 - cover.offset.x) / cover.scale;
-    const cy = (cover.frame.h / 2 - cover.offset.y) / cover.scale;
-    cover.scale = cover.minScale * (percent / 100);
-    cover.offset.x = cover.frame.w / 2 - cx * cover.scale;
-    cover.offset.y = cover.frame.h / 2 - cy * cover.scale;
+
+    const clamped = Math.min(300, Math.max(100, percent));
+    // 以锚点（默认画面中心）为基准缩放，滚轮时用鼠标位置
+    const px = anchor ? anchor.x : cover.frame.w / 2;
+    const py = anchor ? anchor.y : cover.frame.h / 2;
+    const srcX = (px - cover.offset.x) / cover.scale;
+    const srcY = (py - cover.offset.y) / cover.scale;
+
+    cover.scale = cover.minScale * (clamped / 100);
+    cover.offset.x = px - srcX * cover.scale;
+    cover.offset.y = py - srcY * cover.scale;
+
     clampCover();
     applyCoverTransform();
+    if (el.cropZoom) el.cropZoom.value = String(Math.round(clamped));
+  }
+
+  /* 鼠标滚轮缩放：以指针所在位置为锚点，向上放大、向下缩小 */
+  function initCropWheel() {
+    const frame = el.cropFrame;
+    if (!frame) return;
+
+    frame.addEventListener(
+      "wheel",
+      (event) => {
+        if (!cover.img || !el.cropDialog?.open) return;
+        event.preventDefault();
+
+        const rect = frame.getBoundingClientRect();
+        const anchor = { x: event.clientX - rect.left, y: event.clientY - rect.top };
+        const current = Number(el.cropZoom?.value ?? 100);
+        const step = event.deltaY < 0 ? 10 : -10;
+        setCoverZoom(current + step, anchor);
+      },
+      { passive: false },
+    );
   }
 
   function openCropDialog(file) {
@@ -1183,6 +1211,7 @@
   on(el.btnCropCancel, "click", () => el.cropDialog?.close());
   on(el.btnCropApply, "click", applyCrop);
   initCropDrag();
+  initCropWheel();
   refreshStatus();
   loadConfig();
   loadWorlds();

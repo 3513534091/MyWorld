@@ -966,6 +966,7 @@ body {
   color: var(--text-faint);
   font-family: var(--mono);
   font-size: var(--fs-tiny);
+  white-space: nowrap;
 }
 
 /* ---------- 裁剪 ---------- */
@@ -1017,8 +1018,17 @@ body {
 }
 
 .crop-label {
+  flex: 0 0 auto;
   color: var(--text-faint);
   font-size: var(--fs-small);
+  white-space: nowrap;
+}
+
+.crop-hint {
+  margin: -2px 0 0;
+  color: var(--text-faint);
+  font-size: var(--fs-tiny);
+  text-align: center;
 }
 
 .crop-zoom {
