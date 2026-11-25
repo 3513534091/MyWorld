@@ -82,6 +82,15 @@ gcc -O2 -municode -static -static-libgcc -o MyWorld.exe tools\launcher.c
 - 两套配色全部收敛在 [`web/css/style.css`](web/css/style.css) 的 CSS 变量里：`:root` 是深色，`:root[data-theme="light"]` 覆盖成浅色。加新组件时用变量，就不会在浅色下出现白底白字。
 - 字号也是变量：`--fs-base`（15px）、`--fs-small`、`--fs-tiny`、`--fs-heading`，外加 `--topbar-h`、`--panel-w`；想整体放大只改「排版刻度」那一段，不用逐个组件去调。
 
+## 左侧栏
+
+顶栏最左边的按钮切换展开/收起，快捷键 **`Ctrl+B`**。
+
+- 收起后画布占满整个宽度；宽度与内容位移同时过渡（240ms），整条左栏向左滑出
+- 状态记在 `localStorage`，刷新后保持
+- 收起时给侧栏加 `inert`，键盘 Tab 不会跑进看不见的区域
+- 窗口窄于 900px 时自动隐藏（切换按钮一并隐藏）
+
 ## 世界与 data/ 目录
 
 每个「世界」就是 `data/` 下的一个目录，目录名即世界名：

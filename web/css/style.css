@@ -265,22 +265,56 @@ body {
 .btn.icon svg {
   width: 17px;
   height: 17px;
+}
+
+/* 只有主题按钮是「按主题二选一显示」的，别误伤其它图标按钮 */
+#btnTheme svg {
   display: none;
 }
 
-:root[data-theme="dark"] .btn.icon .icon-sun {
+:root[data-theme="dark"] #btnTheme .icon-sun {
   display: block;
 }
 
-:root[data-theme="light"] .btn.icon .icon-moon {
+:root[data-theme="light"] #btnTheme .icon-moon {
   display: block;
 }
 
 /* ---------- 主体 ---------- */
 .layout {
-  display: grid;
-  grid-template-columns: var(--rail-w) var(--panel-w) minmax(0, 1fr);
+  display: flex;
   min-height: 0;
+  min-width: 0;
+}
+
+/* 左侧栏：宽度 + 内容位移一起动画，收起时像整体向左滑出 */
+.sidebar {
+  flex: 0 0 auto;
+  width: calc(var(--rail-w) + var(--panel-w));
+  overflow: hidden;
+  transition: width 0.24s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.sidebar-inner {
+  display: flex;
+  width: calc(var(--rail-w) + var(--panel-w));
+  height: 100%;
+  transition: transform 0.24s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.layout.is-collapsed .sidebar {
+  width: 0;
+}
+
+.layout.is-collapsed .sidebar-inner {
+  transform: translateX(-100%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sidebar,
+  .sidebar-inner {
+    transition: none;
+  }
 }
 
 /* ---------- 最左侧竖向功能区 ---------- */
@@ -289,6 +323,8 @@ body {
   flex-direction: column;
   align-items: center;
   gap: 8px;
+  flex: 0 0 auto;
+  width: var(--rail-w);
   padding: 12px 0;
   background: var(--bg-soft);
   border-right: 1px solid var(--border);
@@ -345,6 +381,8 @@ body {
 }
 
 .panel {
+  flex: 0 0 auto;
+  width: var(--panel-w);
   padding: 16px 18px;
   overflow-y: auto;
   background: var(--panel);
@@ -401,6 +439,8 @@ body {
 /* ---------- 画布占位 ---------- */
 .canvas-wrap {
   position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
   overflow: hidden;
   background: var(--bg);
   transition: background-color 0.18s ease;
@@ -666,17 +706,11 @@ body {
 }
 
 @media (max-width: 900px) {
-  :root {
-    --panel-w: 0px;
-    --rail-w: 0px;
+  .sidebar {
+    display: none;
   }
 
-  .layout {
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .rail,
-  .panel {
+  #btnSidebar {
     display: none;
   }
 

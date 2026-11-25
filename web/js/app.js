@@ -18,6 +18,9 @@
     btnPing: $("btnPing"),
     btnTick: $("btnTick"),
     btnTheme: $("btnTheme"),
+    layout: $("layout"),
+    sidebar: $("sidebar"),
+    btnSidebar: $("btnSidebar"),
     worldName: $("worldName"),
     worldForm: $("worldForm"),
     btnCreateWorld: $("btnCreateWorld"),
@@ -240,6 +243,49 @@
     } finally {
       el.btnSubmitWorld.disabled = false;
     }
+  }
+
+  // ---------------- 左侧栏展开/收起 ----------------
+
+  const SIDEBAR_KEY = "myworld.sidebar";
+
+  function applySidebar(collapsed) {
+    if (!el.layout || !el.sidebar || !el.btnSidebar) return;
+    el.layout.classList.toggle("is-collapsed", collapsed);
+    el.btnSidebar.setAttribute("aria-expanded", String(!collapsed));
+    el.btnSidebar.title = collapsed ? "展开左侧栏 (Ctrl+B)" : "收起左侧栏 (Ctrl+B)";
+    el.sidebar.setAttribute("aria-hidden", String(collapsed));
+    // 收起后把面板移出 Tab 顺序
+    if ("inert" in HTMLElement.prototype) el.sidebar.inert = collapsed;
+  }
+
+  function initSidebar() {
+    if (!el.layout || !el.sidebar || !el.btnSidebar) return;
+
+    let stored = null;
+    try {
+      stored = localStorage.getItem(SIDEBAR_KEY);
+    } catch {
+      stored = null;
+    }
+    applySidebar(stored === "collapsed");
+
+    on(el.btnSidebar, "click", () => {
+      const collapsed = !el.layout.classList.contains("is-collapsed");
+      applySidebar(collapsed);
+      try {
+        localStorage.setItem(SIDEBAR_KEY, collapsed ? "collapsed" : "open");
+      } catch {
+        /* 隐私模式写不进去，忽略 */
+      }
+    });
+
+    document.addEventListener("keydown", (event) => {
+      if ((event.ctrlKey || event.metaKey) && !event.shiftKey && event.key.toLowerCase() === "b") {
+        event.preventDefault();
+        el.btnSidebar.click();
+      }
+    });
   }
 
   // ---------------- 连接状态 ----------------
@@ -486,6 +532,7 @@
 
   initTheme();
   initRail();
+  initSidebar();
   on(el.btnCreateWorld, "click", openWorldForm);
   on(el.btnCancelWorld, "click", closeWorldForm);
   on(el.worldForm, "submit", (event) => {

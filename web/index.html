@@ -26,6 +26,14 @@
 <body>
   <header class="topbar">
     <div class="brand">
+      <button class="btn ghost icon" id="btnSidebar" title="收起左侧栏 (Ctrl+B)" aria-label="切换左侧栏"
+              aria-controls="sidebar" aria-expanded="true">
+        <svg viewBox="0 0 24 24" width="17" height="17" aria-hidden="true">
+          <rect x="3.4" y="4.4" width="17.2" height="15.2" rx="2.6" fill="none"
+                stroke="currentColor" stroke-width="1.6" />
+          <path d="M9.4 4.6v14.8" stroke="currentColor" stroke-width="1.6" />
+        </svg>
+      </button>
       <span class="logo">◆</span>
       <span class="brand-name">MyWorld</span>
       <span class="tag" id="version">v—</span>
@@ -52,9 +60,11 @@
     </div>
   </header>
 
-  <main class="layout">
-    <!-- 最左侧竖向功能区：一个图标就是一栏内容 -->
-    <nav class="rail" aria-label="功能区">
+  <main class="layout" id="layout">
+    <div class="sidebar" id="sidebar" aria-hidden="false">
+      <div class="sidebar-inner">
+        <!-- 最左侧竖向功能区：一个图标就是一栏内容 -->
+        <nav class="rail" aria-label="功能区">
       <button class="rail-item is-active" data-pane="info" title="非发行版信息" aria-label="非发行版信息" aria-pressed="true">
         <svg viewBox="0 0 24 24" aria-hidden="true">
           <circle cx="12" cy="12" r="8.6" fill="none" stroke="currentColor" stroke-width="1.6" />
@@ -141,6 +151,8 @@
         </p>
       </section>
     </aside>
+      </div>
+    </div>
 
     <section class="canvas-wrap">
       <div class="canvas-grid"></div>
