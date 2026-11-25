@@ -42,6 +42,8 @@
     coverHintText: $("coverHintText"),
     coverMeta: $("coverMeta"),
     worldImage: $("worldImage"),
+    detailImage: $("detailImage"),
+    detailPhotoBtn: $("detailPhotoBtn"),
     cropDialog: $("cropDialog"),
     cropTitle: $("cropTitle"),
     cropFrame: $("cropFrame"),
@@ -959,6 +961,9 @@
 
   // ---------------- 封面：选图 + 裁剪 ----------------
 
+  // "create" = 创建弹窗里裁剪后待提交；"portrait" = 给角色换立绘，裁完直接上传
+  let cropPurpose = "create";
+
   const cover = {
     img: null,
     blob: null,
@@ -1045,8 +1050,9 @@
     );
   }
 
-  function openCropDialog(file) {
+  function openCropDialog(file, purpose = "create") {
     if (!el.cropDialog || !el.cropImage) return;
+    cropPurpose = purpose;
     const url = URL.createObjectURL(file);
     const img = new Image();
 
@@ -1054,8 +1060,8 @@
       cover.img = img;
       el.cropImage.src = url;
 
-      // 先把画框比例切好，再量尺寸（角色用 9:16，世界用 16:9）
-      const portrait = createMode === "character";
+      // 先把画框比例切好，再量尺寸（换立绘和建角色都是 9:16，世界封面是 16:9）
+      const portrait = purpose === "portrait" || createMode === "character";
       if (el.cropTitle) el.cropTitle.textContent = portrait ? "裁剪立绘" : "裁剪封面";
       if (el.cropFrame) {
         el.cropFrame.classList.toggle("is-portrait", portrait);
@@ -1108,6 +1114,14 @@
           showCreateError("裁剪失败，换一张图片试试");
           return;
         }
+
+        // 换立绘：裁完直接上传，不动创建弹窗里的封面状态
+        if (cropPurpose === "portrait") {
+          el.cropDialog.close();
+          uploadCharacterPortrait(blob);
+          return;
+        }
+
         cover.blob = blob;
         if (el.coverImg) {
           el.coverImg.src = URL.createObjectURL(blob);
@@ -1123,6 +1137,41 @@
       "image/jpeg",
       0.9,
     );
+  }
+
+  /* 面板里点立绘 → 选图 → 裁剪 → 直接上传替换 */
+  async function uploadCharacterPortrait(blob) {
+    if (!loadedWorld || !currentDetailName) return;
+
+    const worldName = loadedWorld.name;
+    const charName = currentDetailName;
+    try {
+      const response = await fetch(
+        `/api/worlds/${encodeURIComponent(worldName)}/characters/${encodeURIComponent(charName)}/portrait`,
+        {
+          method: "POST",
+          headers: { "Content-Type": blob.type || "image/jpeg" },
+          body: blob,
+        },
+      );
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+      // 同一地址加时间戳，避免浏览器用旧图
+      const stamp = Date.now();
+      if (el.detailPhoto) {
+        el.detailPhoto.src = `${portraitUrl(worldName, charName)}&v=${stamp}`;
+      }
+      const card = [...(el.characterList?.querySelectorAll(".character-card") ?? [])].find(
+        (item) => item.dataset.name === charName,
+      );
+      const cardImage = card?.querySelector("img");
+      if (cardImage) {
+        cardImage.src = `/api/worlds/${encodeURIComponent(worldName)}/characters/${encodeURIComponent(charName)}/portrait?theme=${currentTheme()}&v=${stamp}`;
+      }
+      toast("立绘已更新");
+    } catch (err) {
+      toast("立绘上传失败：" + err.message, "error");
+    }
   }
 
   function initCropDrag() {
@@ -1523,6 +1572,15 @@
   on(el.btnCloseDetail, "click", closeCharacterPanel);
   on(el.btnDetailCancel, "click", closeCharacterPanel);
   on(el.btnDetailSave, "click", saveCharacterDetail);
+
+  // 点面板里的立绘 → 选图 → 裁剪 → 直接上传
+  on(el.detailPhotoBtn, "click", () => el.detailImage?.click());
+  on(el.detailImage, "change", () => {
+    const file = el.detailImage?.files?.[0];
+    if (!file) return;
+    el.detailImage.value = "";
+    openCropDialog(file, "portrait");
+  });
   document.addEventListener("keydown", (event) => {
     if (event.key !== "Escape") return;
     if (el.cropDialog?.open || el.createDialog?.open || el.confirmDialog?.open) return;

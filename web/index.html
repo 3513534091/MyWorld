@@ -217,7 +217,10 @@
 
           <div class="detail-body">
             <div class="detail-photo-wrap">
-              <img class="detail-photo" id="detailPhoto" alt="" />
+              <button class="detail-photo-btn" id="detailPhotoBtn" type="button" aria-label="点击更换立绘">
+                <img class="detail-photo" id="detailPhoto" alt="" />
+                <span class="detail-photo-hint">点击更换立绘</span>
+              </button>
             </div>
 
             <div class="attr-list" id="attrList"></div>
@@ -294,6 +297,7 @@
       </div>
     </form>
     <input type="file" id="worldImage" accept="image/png,image/jpeg,image/webp" hidden />
+    <input type="file" id="detailImage" accept="image/png,image/jpeg,image/webp" hidden />
   </dialog>
 
   <!-- 裁剪弹窗 -->
