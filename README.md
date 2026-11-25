@@ -108,6 +108,10 @@ data/
 
 ![创建弹窗](docs/screenshot-dialog.png)
 
+弹窗里可以顺便挑封面：点左边虚线框选一张本地图片，会弹出**裁剪窗口**（拖动平移、滑杆缩放、九宫格参考），确定后得到 960×540 的封面；也可以不选，之后往世界目录放 `thumbnail.png` 一样有效。
+
+![裁剪封面](docs/screenshot-crop.png)
+
 左栏底部固定着一条 **「选中项 + 加载」** 栏（只在「世界」面板出现）：先在列表里点中一张图，底栏会显示它的名字，点「加载」就把这个世界载入 —— 画布切到「当前世界」视图（显示名字与路径），点「关闭世界」回到占位。没有选中时「加载」是灰的。
 
 还没有真实图片时，缩略图回落到默认图，**深浅两套**各一张（`web/img/world-default.svg` / `world-default-light.svg`），切换主题时会自动换。想换图就往世界目录里放一张 `thumbnail.png`（也认 `.jpg / .jpeg / .webp / .gif`），刷新即可，不需要重启服务。
@@ -152,6 +156,7 @@ presets/
 | GET | `/api/worlds` | 列出 `data/` 下所有世界 |
 | POST | `/api/worlds` | 创建世界，体 `{"name": "名字"}`；重名 409、非法名 400 |
 | GET | `/api/worlds/{名字}/thumbnail` | 世界缩略图；没有真实图片时按 `?theme=dark\|light` 返回对应默认图，世界不存在 404 |
+| POST | `/api/worlds/{名字}/thumbnail` | 上传封面（裁剪后的原图字节，PNG/JPEG/WebP，≤5 MB）；非图片 400、太大 413 |
 | GET | `/api/presets` | 列出 `presets/` 下所有预设 |
 | POST | `/api/presets` | 创建预设，体 `{"name": "名字"}`；重名 409、非法名 400 |
 | POST | `/api/demo/tick` | 向所有已连接页面广播一条事件（验证推送链路） |

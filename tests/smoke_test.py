@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import asyncio
+import base64
 import json
 import os
 import shutil
@@ -163,6 +164,50 @@ async def run_checks(port: int, data_dir: str) -> list[tuple[str, bool, str]]:
 
         async with session.get(f"{base}/api/worlds/{quote('不存在的世界')}/thumbnail") as response:
             checks.append(("未知世界的缩略图返回 404", response.status == 404, str(response.status)))
+
+        # ---- 上传封面（裁剪后的图直接以原始字节 POST） ----
+        png_bytes = base64.b64decode(
+            "iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAYAAABytg0kAAAAFElEQVR4nGP8z8Dwn4GBgYGRgQEAHnQDoG5mWxoAAAAASUVORK5CYII="
+        )
+        async with session.post(
+            thumb_url,
+            data=png_bytes,
+            headers={"Content-Type": "image/png"},
+        ) as response:
+            body = await response.json()
+            checks.append(
+                (
+                    "上传世界封面",
+                    response.status == 200 and body.get("thumbnail") == "thumbnail.png",
+                    f"{response.status} {body.get('thumbnail')} {body.get('bytes')}B",
+                )
+            )
+
+        async with session.get(thumb_url) as response:
+            served = await response.read()
+            checks.append(
+                (
+                    "上传后缩略图返回真实图片",
+                    response.status == 200
+                    and response.headers.get("Content-Type", "").startswith("image/png")
+                    and served == png_bytes,
+                    f"{response.status} {len(served)}B",
+                )
+            )
+
+        async with session.post(
+            thumb_url,
+            data=png_bytes,
+            headers={"Content-Type": "text/plain"},
+        ) as response:
+            checks.append(("非图片类型上传被拒 400", response.status == 400, str(response.status)))
+
+        async with session.post(
+            f"{base}/api/worlds/{quote('不存在的世界')}/thumbnail",
+            data=png_bytes,
+            headers={"Content-Type": "image/png"},
+        ) as response:
+            checks.append(("给不存在的世界上传封面返回 404", response.status == 404, str(response.status)))
 
         world_dir = Path(data_dir) / "测试世界"
         checks.append(

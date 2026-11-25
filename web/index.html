@@ -203,18 +203,64 @@
     </section>
   </main>
 
-  <!-- 创建世界 / 预设共用的弹窗 -->
+  <!-- 创建世界 / 预设共用的弹窗（世界模式更大，可挑封面） -->
   <dialog class="dialog" id="createDialog" aria-labelledby="createTitle">
     <form class="dialog-form" id="createForm">
       <h3 class="dialog-title" id="createTitle">创建新世界</h3>
-      <input class="input" id="createName" type="text" placeholder="给世界取个名字" maxlength="64"
-             autocomplete="off" spellcheck="false" aria-label="名字" />
-      <p class="form-error" id="createError" hidden></p>
+
+      <div class="cover-field" id="coverField" hidden>
+        <button class="cover-preview" id="coverPreview" type="button" aria-label="选择本地图片">
+          <img class="cover-img" id="coverImg" alt="" hidden />
+          <span class="cover-hint" id="coverHint">
+            <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+              <rect x="3.4" y="4.6" width="17.2" height="14.8" rx="2.4" fill="none"
+                    stroke="currentColor" stroke-width="1.6" />
+              <circle cx="9" cy="10" r="1.7" fill="none" stroke="currentColor" stroke-width="1.5" />
+              <path d="M4.4 17.4l4.6-4.2 3.4 3 3-2.6 4.2 3.8" fill="none"
+                    stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" />
+            </svg>
+            <span>点击选择本地图片，可裁剪成 16:9 封面</span>
+          </span>
+        </button>
+        <p class="cover-meta" id="coverMeta" hidden></p>
+      </div>
+
+      <div class="dialog-fields">
+        <input class="input" id="createName" type="text" placeholder="给世界取个名字" maxlength="64"
+               autocomplete="off" spellcheck="false" aria-label="名字" />
+        <p class="hint">封面可以先不选，默认图照样能用；之后往世界目录里放一张
+          <code>thumbnail.png</code> 也能换。</p>
+        <p class="form-error" id="createError" hidden></p>
+      </div>
       <div class="dialog-actions">
         <button class="btn ghost" type="button" id="btnDialogCancel">取消</button>
         <button class="btn" type="submit" id="btnDialogSubmit">创建</button>
       </div>
     </form>
+    <input type="file" id="worldImage" accept="image/png,image/jpeg,image/webp" hidden />
+  </dialog>
+
+  <!-- 裁剪弹窗 -->
+  <dialog class="dialog" id="cropDialog" aria-labelledby="cropTitle">
+    <div class="dialog-form">
+      <h3 class="dialog-title" id="cropTitle">裁剪封面</h3>
+
+      <div class="crop-frame" id="cropFrame">
+        <img class="crop-image" id="cropImage" alt="" />
+        <div class="crop-grid" aria-hidden="true"></div>
+      </div>
+
+      <div class="crop-controls">
+        <span class="crop-label">缩放</span>
+        <input class="crop-zoom" id="cropZoom" type="range" min="100" max="300" value="100" aria-label="缩放" />
+        <span class="cover-meta" id="cropMeta"></span>
+      </div>
+
+      <div class="dialog-actions">
+        <button class="btn ghost" type="button" id="btnCropCancel">取消</button>
+        <button class="btn" type="button" id="btnCropApply">确定</button>
+      </div>
+    </div>
   </dialog>
 
   <script src="/js/app.js"></script>

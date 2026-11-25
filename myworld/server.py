@@ -17,7 +17,7 @@ import time
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
@@ -32,6 +32,14 @@ DEFAULT_WORLD_THUMBS = {
     "light": WEB_DIR / "img" / "world-default-light.svg",
 }
 logger = logging.getLogger("myworld")
+
+# 允许上传的封面类型 → 落盘扩展名
+ALLOWED_THUMB_TYPES = {
+    "image/png": ".png",
+    "image/jpeg": ".jpg",
+    "image/webp": ".webp",
+}
+MAX_THUMB_BYTES = 5 * 1024 * 1024
 
 
 class NameRequest(BaseModel):
@@ -181,6 +189,35 @@ def create_app(settings: Settings) -> FastAPI:
             raise HTTPException(status_code=exc.status, detail=str(exc)) from exc
         logger.info("创建预设「%s」→ %s", created["name"], created["path"])
         return created
+
+    @app.post("/api/worlds/{name}/thumbnail", summary="上传（裁剪后的）世界封面")
+    async def api_upload_thumbnail(name: str, request: Request) -> dict[str, Any]:
+        root = worlds.resolve_root(runtime.settings.data_dir)
+        try:
+            directory = worlds.world_dir(root, name)
+        except worlds.WorldError as exc:
+            raise HTTPException(status_code=exc.status, detail=str(exc)) from exc
+
+        content_type = (request.headers.get("content-type") or "").split(";")[0].strip().lower()
+        ext = ALLOWED_THUMB_TYPES.get(content_type)
+        if ext is None:
+            raise HTTPException(status_code=400, detail="只支持 PNG / JPEG / WebP 图片")
+
+        data = await request.body()
+        if not data:
+            raise HTTPException(status_code=400, detail="图片内容为空")
+        if len(data) > MAX_THUMB_BYTES:
+            limit_mb = MAX_THUMB_BYTES // (1024 * 1024)
+            raise HTTPException(status_code=413, detail=f"图片太大（上限 {limit_mb} MB）")
+
+        # 旧的几种扩展名都清掉，避免同一世界有多张封面
+        for existing in worlds.THUMB_FILENAMES:
+            (directory / existing).unlink(missing_ok=True)
+
+        target = directory / f"thumbnail{ext}"
+        target.write_bytes(data)
+        logger.info("更新世界封面「%s」→ %s（%.1f KB）", name, target.name, len(data) / 1024)
+        return {"name": name, "thumbnail": target.name, "bytes": len(data)}
 
     @app.get("/api/worlds/{name}/thumbnail", summary="世界缩略图（没有则用默认图）")
     async def api_world_thumbnail(name: str, theme: str = "dark") -> FileResponse:

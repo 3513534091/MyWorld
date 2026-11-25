@@ -35,6 +35,19 @@
     createError: $("createError"),
     btnDialogSubmit: $("btnDialogSubmit"),
     btnDialogCancel: $("btnDialogCancel"),
+    coverField: $("coverField"),
+    coverPreview: $("coverPreview"),
+    coverImg: $("coverImg"),
+    coverHint: $("coverHint"),
+    coverMeta: $("coverMeta"),
+    worldImage: $("worldImage"),
+    cropDialog: $("cropDialog"),
+    cropFrame: $("cropFrame"),
+    cropImage: $("cropImage"),
+    cropZoom: $("cropZoom"),
+    cropMeta: $("cropMeta"),
+    btnCropCancel: $("btnCropCancel"),
+    btnCropApply: $("btnCropApply"),
     loadTarget: $("loadTarget"),
     btnLoadWorld: $("btnLoadWorld"),
     loadError: $("loadError"),
@@ -300,6 +313,11 @@
     el.createName.value = "";
     clearCreateError();
 
+    // 只有建世界才有封面（选图 + 裁剪）
+    if (el.coverField) el.coverField.hidden = !isWorld;
+    el.createDialog.classList.toggle("is-wide", isWorld);
+    resetCover();
+
     el.createDialog.showModal();
     requestAnimationFrame(() => el.createName?.focus());
   }
@@ -329,6 +347,20 @@
         body: JSON.stringify({ name }),
       });
 
+      if (mode === "world" && cover.blob) {
+        try {
+          const response = await fetch(`/api/worlds/${encodeURIComponent(created.name)}/thumbnail`, {
+            method: "POST",
+            headers: { "Content-Type": cover.blob.type || "image/jpeg" },
+            body: cover.blob,
+          });
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        } catch (err) {
+          // 世界已经建好了，封面没存上去：提示一下但不回滚
+          showLoadError("封面保存失败：" + err.message);
+        }
+      }
+
       closeCreateDialog();
 
       if (mode === "world") {
@@ -345,6 +377,162 @@
     } finally {
       el.btnDialogSubmit.disabled = false;
     }
+  }
+
+  // ---------------- 封面：选图 + 裁剪 ----------------
+
+  const cover = {
+    img: null,
+    blob: null,
+    frame: { w: 0, h: 0 },
+    scale: 1,
+    minScale: 1,
+    offset: { x: 0, y: 0 },
+    dragging: false,
+    pointer: { x: 0, y: 0 },
+  };
+
+  function resetCover() {
+    cover.img = null;
+    cover.blob = null;
+    if (el.coverImg) {
+      el.coverImg.hidden = true;
+      el.coverImg.removeAttribute("src");
+    }
+    if (el.coverHint) el.coverHint.hidden = false;
+    if (el.coverMeta) {
+      el.coverMeta.hidden = true;
+      el.coverMeta.textContent = "";
+    }
+  }
+
+  function clampCover() {
+    const w = cover.img.naturalWidth * cover.scale;
+    const h = cover.img.naturalHeight * cover.scale;
+    cover.offset.x = Math.min(0, Math.max(cover.frame.w - w, cover.offset.x));
+    cover.offset.y = Math.min(0, Math.max(cover.frame.h - h, cover.offset.y));
+  }
+
+  function applyCoverTransform() {
+    if (!el.cropImage || !cover.img) return;
+    const w = cover.img.naturalWidth * cover.scale;
+    const h = cover.img.naturalHeight * cover.scale;
+    el.cropImage.style.width = `${w}px`;
+    el.cropImage.style.height = `${h}px`;
+    el.cropImage.style.transform = `translate(${cover.offset.x}px, ${cover.offset.y}px)`;
+    if (el.cropMeta) {
+      el.cropMeta.textContent = `${cover.img.naturalWidth}×${cover.img.naturalHeight} · ${Math.round(
+        (cover.scale / cover.minScale) * 100,
+      )}%`;
+    }
+  }
+
+  function setCoverZoom(percent) {
+    if (!cover.img) return;
+    // 以画面中心为锚点缩放
+    const cx = (cover.frame.w / 2 - cover.offset.x) / cover.scale;
+    const cy = (cover.frame.h / 2 - cover.offset.y) / cover.scale;
+    cover.scale = cover.minScale * (percent / 100);
+    cover.offset.x = cover.frame.w / 2 - cx * cover.scale;
+    cover.offset.y = cover.frame.h / 2 - cy * cover.scale;
+    clampCover();
+    applyCoverTransform();
+  }
+
+  function openCropDialog(file) {
+    if (!el.cropDialog || !el.cropImage) return;
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+
+    img.onload = () => {
+      cover.img = img;
+      el.cropImage.src = url;
+      el.cropDialog.showModal();
+      requestAnimationFrame(() => {
+        if (!el.cropFrame) return;
+        const rect = el.cropFrame.getBoundingClientRect();
+        cover.frame = { w: rect.width, h: rect.height };
+        cover.minScale = Math.max(rect.width / img.naturalWidth, rect.height / img.naturalHeight);
+        cover.scale = cover.minScale;
+        cover.offset.x = (rect.width - img.naturalWidth * cover.scale) / 2;
+        cover.offset.y = (rect.height - img.naturalHeight * cover.scale) / 2;
+        clampCover();
+        el.cropZoom.value = "100";
+        applyCoverTransform();
+      });
+    };
+    img.onerror = () => showCreateError("这张图片读不出来，换一张试试");
+    img.src = url;
+  }
+
+  function applyCrop() {
+    if (!cover.img) return;
+
+    const sourceW = cover.frame.w / cover.scale;
+    const sourceH = cover.frame.h / cover.scale;
+    const sourceX = -cover.offset.x / cover.scale;
+    const sourceY = -cover.offset.y / cover.scale;
+
+    const targetW = 960;
+    const targetH = Math.round(960 * (cover.frame.h / cover.frame.w));
+    const canvas = document.createElement("canvas");
+    canvas.width = targetW;
+    canvas.height = targetH;
+    const ctx = canvas.getContext("2d");
+    ctx.drawImage(cover.img, sourceX, sourceY, sourceW, sourceH, 0, 0, targetW, targetH);
+
+    canvas.toBlob(
+      (blob) => {
+        if (!blob) {
+          showCreateError("裁剪失败，换一张图片试试");
+          return;
+        }
+        cover.blob = blob;
+        if (el.coverImg) {
+          el.coverImg.src = URL.createObjectURL(blob);
+          el.coverImg.hidden = false;
+        }
+        if (el.coverHint) el.coverHint.hidden = true;
+        if (el.coverMeta) {
+          el.coverMeta.hidden = false;
+          el.coverMeta.textContent = `已裁剪 ${targetW}×${targetH} · ${(blob.size / 1024).toFixed(0)} KB`;
+        }
+        el.cropDialog.close();
+      },
+      "image/jpeg",
+      0.9,
+    );
+  }
+
+  function initCropDrag() {
+    const frame = el.cropFrame;
+    if (!frame) return;
+
+    frame.addEventListener("pointerdown", (event) => {
+      if (!cover.img) return;
+      cover.dragging = true;
+      cover.pointer = { x: event.clientX, y: event.clientY };
+      frame.classList.add("is-dragging");
+      frame.setPointerCapture?.(event.pointerId);
+    });
+
+    frame.addEventListener("pointermove", (event) => {
+      if (!cover.dragging) return;
+      cover.offset.x += event.clientX - cover.pointer.x;
+      cover.offset.y += event.clientY - cover.pointer.y;
+      cover.pointer = { x: event.clientX, y: event.clientY };
+      clampCover();
+      applyCoverTransform();
+    });
+
+    const end = (event) => {
+      if (!cover.dragging) return;
+      cover.dragging = false;
+      frame.classList.remove("is-dragging");
+      if (frame.hasPointerCapture?.(event.pointerId)) frame.releasePointerCapture(event.pointerId);
+    };
+    frame.addEventListener("pointerup", end);
+    frame.addEventListener("pointercancel", end);
   }
 
   // ---------------- 预设 ----------------
@@ -681,6 +869,19 @@
   // Esc / 点击遮罩关闭时清掉错误提示
   on(el.createDialog, "cancel", clearCreateError);
   on(el.createDialog, "close", clearCreateError);
+
+  // 封面：选本地图片 → 裁剪弹窗
+  on(el.coverPreview, "click", () => el.worldImage?.click());
+  on(el.worldImage, "change", () => {
+    const file = el.worldImage?.files?.[0];
+    if (!file) return;
+    el.worldImage.value = "";
+    openCropDialog(file);
+  });
+  on(el.cropZoom, "input", () => setCoverZoom(Number(el.cropZoom.value)));
+  on(el.btnCropCancel, "click", () => el.cropDialog?.close());
+  on(el.btnCropApply, "click", applyCrop);
+  initCropDrag();
   refreshStatus();
   loadConfig();
   loadWorlds();
