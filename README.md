@@ -2,9 +2,15 @@
 
 本地跑一个服务，浏览器打开就是一个工作台 —— 类似 ComfyUI 的那种形态：**前端只负责界面与交互，后端负责内容与任务**，两者通过 REST + WebSocket 通信。
 
-当前是 **v0.1.0 骨架版**：端口管理、静态前端、REST 状态接口、WebSocket 心跳/重连/服务端广播链路都已打通，节点画布留在下一步。
+当前是 **v0.1.0 骨架版**：端口管理、静态前端、REST 状态接口、WebSocket 心跳/重连/服务端广播链路都已打通，明暗两套主题可切换，节点画布留在下一步。
 
-![MyWorld 界面](docs/screenshot.png)
+深色：
+
+![MyWorld 深色界面](docs/screenshot.png)
+
+浅色（右上角 ☀/☾ 切换，或访问 `?theme=light`）：
+
+![MyWorld 浅色界面](docs/screenshot-light.png)
 
 ## 快速开始
 
@@ -68,6 +74,13 @@ gcc -O2 -municode -static -static-libgcc -o MyWorld.exe tools\launcher.c
 - 加 `--strict-port` 则改为直接报错退出，适合需要固定端口的场景。
 - 想让局域网其他设备访问，用 `--host 0.0.0.0`（注意：无鉴权，仅限可信网络）。
 
+## 明暗主题
+
+右上角的 ☀/☾ 按钮切换明暗，选择记在 `localStorage`；首次访问跟随系统的 `prefers-color-scheme`，系统主题变了也会跟着变（除非你手动选过）。
+
+- 强制某个主题：`http://127.0.0.1:8000/?theme=light`（截图、演示时方便）
+- 两套配色全部收敛在 [`web/css/style.css`](web/css/style.css) 的 CSS 变量里：`:root` 是深色，`:root[data-theme="light"]` 覆盖成浅色。加新组件时用变量，就不会在浅色下出现白底白字。
+
 ## 接口
 
 | 方法 | 路径 | 说明 |
@@ -111,7 +124,7 @@ myworld/
   server.py            FastAPI 应用：REST + WebSocket + 静态托管
 web/
   index.html           界面结构
-  css/style.css        深色主题
+  css/style.css        明暗两套主题（CSS 变量）
   js/app.js            状态渲染、WS 连接/心跳/重连（日志在控制台，页面不放日志）
 tests/
   test_config.py       配置解析单元测试（纯标准库）

@@ -17,6 +17,7 @@
     uptime: $("uptime"),
     btnPing: $("btnPing"),
     btnTick: $("btnTick"),
+    btnTheme: $("btnTheme"),
   };
 
   const state = {
@@ -34,6 +35,52 @@
 
   // DevTools 里的调试输出，不影响页面
   const debug = (...args) => console.debug("[myworld]", ...args);
+
+  // ---------------- 明暗主题 ----------------
+
+  const THEME_KEY = "myworld.theme";
+
+  function currentTheme() {
+    return document.documentElement.dataset.theme === "light" ? "light" : "dark";
+  }
+
+  function applyTheme(theme) {
+    document.documentElement.dataset.theme = theme;
+    // 图标由 CSS 按 data-theme 切换（暗色显示太阳、浅色显示月亮），这里只更新提示
+    const tip = theme === "light" ? "切换到深色" : "切换到浅色";
+    el.btnTheme.title = tip;
+    el.btnTheme.setAttribute("aria-label", tip);
+  }
+
+  function initTheme() {
+    // index.html 里的内联脚本已经定好初始主题（localStorage → 系统偏好），
+    // 这里只负责同步按钮外观与手动切换。
+    applyTheme(currentTheme());
+
+    el.btnTheme.addEventListener("click", () => {
+      const next = currentTheme() === "light" ? "dark" : "light";
+      applyTheme(next);
+      try {
+        localStorage.setItem(THEME_KEY, next);
+      } catch {
+        /* 隐私模式下写不进去，忽略 */
+      }
+    });
+
+    // 用户没手动选过时，跟随系统主题变化
+    const media = window.matchMedia("(prefers-color-scheme: light)");
+    if (typeof media.addEventListener === "function") {
+      media.addEventListener("change", (event) => {
+        let stored = null;
+        try {
+          stored = localStorage.getItem(THEME_KEY);
+        } catch {
+          stored = null;
+        }
+        if (!stored) applyTheme(event.matches ? "light" : "dark");
+      });
+    }
+  }
 
   // ---------------- 连接状态 ----------------
 
@@ -256,6 +303,7 @@
 
   // ---------------- 启动 ----------------
 
+  initTheme();
   refreshStatus();
   loadConfig();
   connect();

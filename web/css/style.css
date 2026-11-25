@@ -1,4 +1,8 @@
+/* MyWorld 主题：全部颜色收敛成变量，深浅两套只换变量。
+ * 深色为默认；<html data-theme="light"> 切浅色。 */
+
 :root {
+  /* 深色（默认） */
   --bg: #0e1116;
   --bg-soft: #141922;
   --panel: #161b24;
@@ -12,8 +16,64 @@
   --ok: #3ddc97;
   --warn: #ffb454;
   --error: #ff6b6b;
-  --grid: rgba(255, 255, 255, 0.045);
+
+  --topbar-hi: #161b24;
+  --topbar-lo: #12161e;
+  --chip-bg: rgba(255, 255, 255, 0.02);
+  --ghost-hover-bg: rgba(255, 255, 255, 0.03);
+  --badge-bg: rgba(14, 17, 22, 0.8);
+  --scroll-thumb: #2b3342;
+  --scroll-thumb-hover: #384153;
+
+  --btn-text: #cfc4ff;
+  --btn-border: rgba(124, 92, 255, 0.55);
+  --btn-bg: rgba(124, 92, 255, 0.16);
+  --btn-bg-hover: rgba(124, 92, 255, 0.28);
+  --pill-on-border: rgba(61, 220, 151, 0.4);
+
+  --accent-glow: rgba(124, 92, 255, 0.7);
+  --grid-dot: rgba(255, 255, 255, 0.045);
+  --grid-accent: rgba(124, 92, 255, 0.06);
+
   --mono: "Cascadia Code", "JetBrains Mono", Consolas, "Courier New", monospace;
+
+  color-scheme: dark;
+}
+
+:root[data-theme="light"] {
+  --bg: #f5f7fa;
+  --bg-soft: #eef1f6;
+  --panel: #ffffff;
+  --border: #d7dde7;
+  --border-soft: #e6eaf1;
+  --text: #1b2230;
+  --text-dim: #4b5567;
+  --text-faint: #7b8598;
+  --accent: #6244e8;
+  --accent-soft: rgba(98, 68, 232, 0.1);
+  --ok: #128a5c;
+  --warn: #a86400;
+  --error: #cf3b3b;
+
+  --topbar-hi: #ffffff;
+  --topbar-lo: #f1f4f9;
+  --chip-bg: rgba(20, 30, 50, 0.03);
+  --ghost-hover-bg: rgba(20, 30, 50, 0.05);
+  --badge-bg: rgba(255, 255, 255, 0.86);
+  --scroll-thumb: #c4cbd8;
+  --scroll-thumb-hover: #a9b2c3;
+
+  --btn-text: #4a34c8;
+  --btn-border: rgba(98, 68, 232, 0.4);
+  --btn-bg: rgba(98, 68, 232, 0.08);
+  --btn-bg-hover: rgba(98, 68, 232, 0.16);
+  --pill-on-border: rgba(18, 138, 92, 0.35);
+
+  --accent-glow: rgba(98, 68, 232, 0.35);
+  --grid-dot: rgba(20, 30, 50, 0.07);
+  --grid-accent: rgba(98, 68, 232, 0.06);
+
+  color-scheme: light;
 }
 
 * {
@@ -34,6 +94,7 @@ body {
   font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
   font-size: 13px;
   overflow: hidden;
+  transition: background-color 0.18s ease, color 0.18s ease;
 }
 
 /* ---------- 顶栏 ---------- */
@@ -43,8 +104,9 @@ body {
   justify-content: space-between;
   gap: 12px;
   padding: 0 16px;
-  background: linear-gradient(180deg, #161b24, #12161e);
+  background: linear-gradient(180deg, var(--topbar-hi), var(--topbar-lo));
   border-bottom: 1px solid var(--border);
+  transition: background 0.18s ease, border-color 0.18s ease;
 }
 
 .brand {
@@ -57,7 +119,7 @@ body {
 .logo {
   color: var(--accent);
   font-size: 15px;
-  filter: drop-shadow(0 0 6px rgba(124, 92, 255, 0.7));
+  filter: drop-shadow(0 0 6px var(--accent-glow));
 }
 
 .brand-name {
@@ -99,7 +161,7 @@ body {
 }
 
 .pill[data-state="on"] {
-  border-color: rgba(61, 220, 151, 0.4);
+  border-color: var(--pill-on-border);
   color: var(--ok);
 }
 
@@ -119,7 +181,7 @@ body {
   padding: 4px 10px;
   border: 1px solid var(--border-soft);
   border-radius: 6px;
-  background: rgba(255, 255, 255, 0.02);
+  background: var(--chip-bg);
   font-family: var(--mono);
   font-size: 12px;
 }
@@ -131,17 +193,17 @@ body {
 
 .btn {
   padding: 5px 12px;
-  border: 1px solid rgba(124, 92, 255, 0.55);
+  border: 1px solid var(--btn-border);
   border-radius: 6px;
-  background: var(--accent-soft);
-  color: #cfc4ff;
+  background: var(--btn-bg);
+  color: var(--btn-text);
   font-size: 12px;
   cursor: pointer;
   transition: background 0.15s, border-color 0.15s;
 }
 
 .btn:hover {
-  background: rgba(124, 92, 255, 0.28);
+  background: var(--btn-bg-hover);
   border-color: var(--accent);
 }
 
@@ -158,12 +220,35 @@ body {
 .btn.ghost:hover {
   border-color: var(--text-faint);
   color: var(--text);
-  background: rgba(255, 255, 255, 0.03);
+  background: var(--ghost-hover-bg);
 }
 
 .btn.small {
   padding: 2px 8px;
   font-size: 11px;
+}
+
+/* 主题切换：暗色下显示太阳（点了变亮），浅色下显示月亮 */
+.btn.icon {
+  width: 30px;
+  height: 28px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.btn.icon svg {
+  display: none;
+}
+
+:root[data-theme="dark"] .btn.icon .icon-sun {
+  display: block;
+}
+
+:root[data-theme="light"] .btn.icon .icon-moon {
+  display: block;
 }
 
 /* ---------- 主体 ---------- */
@@ -178,6 +263,7 @@ body {
   overflow-y: auto;
   background: var(--panel);
   border-right: 1px solid var(--border);
+  transition: background-color 0.18s ease, border-color 0.18s ease;
 }
 
 .panel h2 {
@@ -191,7 +277,7 @@ body {
 
 .panel h2 + .meta,
 .panel .hint {
-  margin-bottom: 20px;
+  margin-bottom: 16px;
 }
 
 .meta {
@@ -221,19 +307,25 @@ body {
   line-height: 1.7;
 }
 
+.hint b {
+  color: var(--text-dim);
+  font-weight: 600;
+}
+
 /* ---------- 画布占位 ---------- */
 .canvas-wrap {
   position: relative;
   overflow: hidden;
   background: var(--bg);
+  transition: background-color 0.18s ease;
 }
 
 .canvas-grid {
   position: absolute;
   inset: 0;
   background-image:
-    radial-gradient(circle, var(--grid) 1px, transparent 1px),
-    radial-gradient(circle, rgba(124, 92, 255, 0.06) 1px, transparent 1px);
+    radial-gradient(circle, var(--grid-dot) 1px, transparent 1px),
+    radial-gradient(circle, var(--grid-accent) 1px, transparent 1px);
   background-size: 24px 24px, 120px 120px;
   background-position: 0 0, 12px 12px;
 }
@@ -268,7 +360,7 @@ body {
   padding: 3px 8px;
   border: 1px solid var(--border-soft);
   border-radius: 4px;
-  background: rgba(14, 17, 22, 0.8);
+  background: var(--badge-bg);
   color: var(--text-faint);
   font-family: var(--mono);
   font-size: 11px;
@@ -283,12 +375,12 @@ body {
 ::-webkit-scrollbar-thumb {
   border: 2px solid transparent;
   border-radius: 6px;
-  background: #2b3342;
+  background: var(--scroll-thumb);
   background-clip: content-box;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #384153;
+  background: var(--scroll-thumb-hover);
   background-clip: content-box;
 }
 
@@ -303,5 +395,10 @@ body {
 
   .panel {
     display: none;
+  }
+
+  .btn:not(.icon) {
+    padding: 4px 8px;
+    font-size: 11px;
   }
 }

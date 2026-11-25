@@ -5,6 +5,22 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>MyWorld</title>
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%E2%97%86%3C/text%3E%3C/svg%3E" />
+  <script>
+    /* 在样式生效前定好主题，避免首屏闪一下白/黑 */
+    (function () {
+      try {
+        var params = new URLSearchParams(location.search);
+        var forced = params.get("theme");
+        var stored = localStorage.getItem("myworld.theme");
+        var theme = forced === "light" || forced === "dark"
+          ? forced
+          : stored || (window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark");
+        document.documentElement.dataset.theme = theme;
+      } catch (err) {
+        document.documentElement.dataset.theme = "dark";
+      }
+    })();
+  </script>
   <link rel="stylesheet" href="/css/style.css" />
 </head>
 <body>
@@ -22,6 +38,17 @@
       <div class="chip"><span class="chip-label">延迟</span><span id="latency">—</span></div>
       <button class="btn ghost" id="btnPing">Ping</button>
       <button class="btn" id="btnTick">模拟服务端推送</button>
+      <button class="btn ghost icon" id="btnTheme" title="切换明暗主题" aria-label="切换明暗主题">
+        <svg class="icon-sun" viewBox="0 0 24 24" width="15" height="15" aria-hidden="true">
+          <circle cx="12" cy="12" r="4.2" fill="none" stroke="currentColor" stroke-width="1.6" />
+          <path d="M12 2.6v2.2M12 19.2v2.2M2.6 12h2.2M19.2 12h2.2M5.4 5.4l1.6 1.6M17 17l1.6 1.6M18.6 5.4L17 7M7 17l-1.6 1.6"
+                stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+        </svg>
+        <svg class="icon-moon" viewBox="0 0 24 24" width="15" height="15" aria-hidden="true">
+          <path d="M20 14.4A8.2 8.2 0 0 1 9.6 4 8.4 8.4 0 1 0 20 14.4z"
+                fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round" />
+        </svg>
+      </button>
     </div>
   </header>
 

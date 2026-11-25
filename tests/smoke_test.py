@@ -68,13 +68,26 @@ async def run_checks(port: int) -> list[tuple[str, bool, str]]:
 
         async with session.get(base + "/") as response:
             html = await response.text()
-            checks.append(("GET / 返回前端页面", response.status == 200 and "MyWorld" in html, f"{response.status}, {len(html)} bytes"))
+            checks.append(
+                (
+                    "GET / 返回前端页面",
+                    response.status == 200 and "MyWorld" in html and "btnTheme" in html,
+                    f"{response.status}, {len(html)} bytes",
+                )
+            )
 
         async with session.get(base + "/js/app.js") as response:
             checks.append(("GET /js/app.js 静态资源", response.status == 200, str(response.status)))
 
         async with session.get(base + "/css/style.css") as response:
-            checks.append(("GET /css/style.css 静态资源", response.status == 200, str(response.status)))
+            css = await response.text()
+            checks.append(
+                (
+                    "GET /css/style.css 含浅色主题变量",
+                    response.status == 200 and 'data-theme="light"' in css,
+                    f"{response.status}, {len(css)} bytes",
+                )
+            )
 
         async with session.get(base + "/api/config") as response:
             config = await response.json()
