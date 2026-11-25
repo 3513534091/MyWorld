@@ -658,12 +658,13 @@ body {
   text-overflow: ellipsis;
 }
 
-/* 角色卡：9:16 立绘 + 名字；按宽度自适应，典型宽度下一行 5 张、折两行 */
+/* 角色卡：9:16 立绘 + 名字；固定列宽，右侧面板才能精确对齐两列 */
 .character-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  grid-template-columns: repeat(auto-fill, 180px);
   gap: 20px 18px;
   align-content: start;
+  justify-content: start;
 }
 
 .character-card {
@@ -1302,7 +1303,7 @@ body {
   }
 }
 
-/* ---------- 右侧角色属性面板（从右往左滑入） ---------- */
+/* ---------- 右侧角色属性面板（从右往左滑入，宽度=两列卡片） ---------- */
 .detail-panel {
   position: absolute;
   top: 0;
@@ -1311,10 +1312,11 @@ body {
   z-index: 20;
   display: flex;
   flex-direction: column;
-  width: min(380px, 100%);
+  width: var(--detail-w, 378px);
   border-left: 1px solid var(--border);
   background: var(--panel);
   box-shadow: -18px 0 40px rgba(0, 0, 0, 0.35);
+  font-size: var(--fs-base);
   visibility: hidden;
   transform: translateX(102%);
   transition: transform 0.26s cubic-bezier(0.4, 0, 0.2, 1), visibility 0.26s;
@@ -1323,6 +1325,15 @@ body {
 .detail-panel.is-open {
   visibility: visible;
   transform: translateX(0);
+}
+
+/* 面板打开时把内容区让出同样的宽度，卡片会重排（移动由 JS 的 FLIP 动画负责） */
+.canvas-body.has-detail .character-view {
+  right: var(--detail-w, 378px);
+}
+
+.attr-spacer {
+  width: 28px;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1337,28 +1348,28 @@ body {
   justify-content: space-between;
   gap: 10px;
   flex: 0 0 auto;
-  padding: 12px 14px 12px 16px;
+  padding: 14px 14px 14px 18px;
   border-bottom: 1px solid var(--border-soft);
 }
 
 .detail-head strong {
-  font-size: var(--fs-base);
+  font-size: 18px;
   font-weight: 600;
 }
 
 .detail-head .btn.icon {
   width: 30px;
   height: 28px;
-  font-size: 13px;
+  font-size: 14px;
 }
 
 .detail-body {
   display: flex;
   flex: 1 1 auto;
   flex-direction: column;
-  gap: 14px;
+  gap: 16px;
   min-height: 0;
-  padding: 14px 16px;
+  padding: 16px 18px;
   overflow-y: auto;
 }
 
@@ -1368,25 +1379,12 @@ body {
 }
 
 .detail-photo {
-  width: 180px;
+  width: 200px;
   aspect-ratio: 9 / 16;
   border: 1px solid var(--border-soft);
   border-radius: var(--radius-md);
   background: var(--chip-bg);
   object-fit: cover;
-}
-
-.detail-label {
-  color: var(--text-faint);
-  font-size: var(--fs-tiny);
-  letter-spacing: 1px;
-  text-transform: uppercase;
-}
-
-.detail-field {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
 }
 
 .detail-attrs {
@@ -1398,32 +1396,38 @@ body {
 .attr-list {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
 }
 
 .attr-row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr) auto;
-  gap: 8px;
+  grid-template-columns: 92px minmax(0, 1fr) auto;
+  gap: 10px;
   align-items: center;
 }
 
 .attr-row .input {
-  padding: 5px 8px;
-  font-size: var(--fs-tiny);
+  padding: 7px 10px;
+  font-size: var(--fs-base);
+}
+
+.attr-label-fixed {
+  color: var(--text-dim);
+  font-size: var(--fs-base);
+  font-weight: 600;
 }
 
 .attr-remove {
   display: grid;
   place-items: center;
-  width: 26px;
-  height: 26px;
+  width: 28px;
+  height: 28px;
   padding: 0;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   background: transparent;
   color: var(--text-faint);
-  font-size: 14px;
+  font-size: 15px;
   line-height: 1;
   cursor: pointer;
 }
@@ -1438,7 +1442,7 @@ body {
   flex-direction: column;
   gap: 8px;
   flex: 0 0 auto;
-  padding: 12px 16px;
+  padding: 14px 18px;
   border-top: 1px solid var(--border-soft);
 }
 
@@ -1446,6 +1450,11 @@ body {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
+}
+
+.detail-actions .btn {
+  font-size: var(--fs-base);
+  padding: 7px 16px;
 }
 
 /* ---------- 滚动条 ---------- */

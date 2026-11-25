@@ -60,9 +60,9 @@
     characterList: $("characterList"),
     characterEmpty: $("characterEmpty"),
     characterPanel: $("characterPanel"),
+    canvasBody: $("canvasBody"),
     detailTitle: $("detailTitle"),
     detailPhoto: $("detailPhoto"),
-    detailName: $("detailName"),
     attrList: $("attrList"),
     btnAddAttr: $("btnAddAttr"),
     btnCloseDetail: $("btnCloseDetail"),
@@ -355,48 +355,108 @@
     el.detailError.hidden = false;
   }
 
-  function makeAttrRow(label = "", value = "") {
+  function makeAttrRow({ label = "", value = "", fixedLabel = false, removable = true } = {}) {
     const row = document.createElement("div");
     row.className = "attr-row";
 
-    const labelInput = document.createElement("input");
-    labelInput.className = "input";
-    labelInput.placeholder = "属性名";
-    labelInput.value = label;
-    labelInput.setAttribute("aria-label", "属性名");
+    if (fixedLabel) {
+      const labelEl = document.createElement("span");
+      labelEl.className = "attr-label-fixed";
+      labelEl.textContent = label;
+      row.append(labelEl);
+    } else {
+      const labelInput = document.createElement("input");
+      labelInput.className = "input attr-label-input";
+      labelInput.placeholder = "属性名";
+      labelInput.value = label;
+      labelInput.maxLength = 40;
+      labelInput.setAttribute("aria-label", "属性名");
+      row.append(labelInput);
+    }
 
     const valueInput = document.createElement("input");
-    valueInput.className = "input";
-    valueInput.placeholder = "值";
+    valueInput.className = "input attr-value";
+    valueInput.placeholder = fixedLabel ? "角色名（不能重复）" : "值";
     valueInput.value = value;
-    valueInput.setAttribute("aria-label", "属性值");
+    valueInput.maxLength = fixedLabel ? 64 : 200;
+    valueInput.setAttribute("aria-label", fixedLabel ? "角色名" : "属性值");
+    row.append(valueInput);
 
-    const remove = document.createElement("button");
-    remove.type = "button";
-    remove.className = "attr-remove";
-    remove.textContent = "×";
-    remove.setAttribute("aria-label", "删除这条属性");
-    remove.addEventListener("click", () => row.remove());
+    if (removable) {
+      const remove = document.createElement("button");
+      remove.type = "button";
+      remove.className = "attr-remove";
+      remove.textContent = "×";
+      remove.setAttribute("aria-label", "删除这条属性");
+      remove.addEventListener("click", () => row.remove());
+      row.append(remove);
+    } else {
+      const spacer = document.createElement("span");
+      spacer.className = "attr-spacer";
+      spacer.setAttribute("aria-hidden", "true");
+      row.append(spacer);
+    }
 
-    row.append(labelInput, valueInput, remove);
     return row;
   }
 
-  function renderAttributes(attributes) {
+  /* 第一行固定是「姓名」（值唯一），其余是普通属性（值可重复） */
+  function renderAttributeRows(detail) {
     if (!el.attrList) return;
     el.attrList.replaceChildren();
-    for (const attr of attributes || []) {
-      el.attrList.append(makeAttrRow(attr.label ?? "", attr.value ?? ""));
+    el.attrList.append(makeAttrRow({ label: "姓名", value: detail.name ?? "", fixedLabel: true, removable: false }));
+    for (const attr of detail.attributes ?? []) {
+      el.attrList.append(makeAttrRow({ label: attr.label ?? "", value: attr.value ?? "" }));
     }
   }
 
-  function collectAttributes() {
-    return [...el.attrList.querySelectorAll(".attr-row")]
-      .map((row) => {
-        const inputs = row.querySelectorAll("input");
-        return { label: inputs[0].value.trim(), value: inputs[1].value.trim() };
-      })
+  function collectRows() {
+    const rows = [...(el.attrList?.querySelectorAll(".attr-row") ?? [])];
+    const name = rows[0]?.querySelector(".attr-value")?.value.trim() ?? "";
+    const attributes = rows
+      .slice(1)
+      .map((row) => ({
+        label: row.querySelector(".attr-label-input")?.value.trim() ?? "",
+        value: row.querySelector(".attr-value")?.value.trim() ?? "",
+      }))
       .filter((attr) => attr.label || attr.value);
+    return { name, attributes };
+  }
+
+  /* 卡片重排时用 FLIP 动画：先量旧位置，改布局后再把差异补成 transform */
+  function animateCharacterReflow(mutate) {
+    const cards = [...(el.characterList?.querySelectorAll(".character-card") ?? [])];
+    const before = cards.map((card) => card.getBoundingClientRect());
+
+    mutate();
+
+    requestAnimationFrame(() => {
+      cards.forEach((card, index) => {
+        const first = before[index];
+        const last = card.getBoundingClientRect();
+        const dx = first.left - last.left;
+        const dy = first.top - last.top;
+        if (Math.abs(dx) < 1 && Math.abs(dy) < 1) return;
+
+        card.style.transition = "none";
+        card.style.transform = `translate(${dx}px, ${dy}px)`;
+        requestAnimationFrame(() => {
+          card.style.transition = "transform 0.26s cubic-bezier(0.4, 0, 0.2, 1)";
+          card.style.transform = "";
+        });
+      });
+    });
+  }
+
+  /* 面板宽度 = 正好两列卡片 + 列间距 */
+  function measureDetailWidth() {
+    const list = el.characterList;
+    const card = list?.querySelector(".character-card");
+    if (!list || !card) return 378;
+
+    const gap = parseFloat(getComputedStyle(list).columnGap || "0") || 18;
+    const width = card.getBoundingClientRect().width;
+    return Math.max(240, Math.round(width * 2 + gap));
   }
 
   async function openCharacterPanel(item) {
@@ -405,21 +465,27 @@
     currentDetailName = item.name;
     if (el.detailError) el.detailError.hidden = true;
     if (el.detailTitle) el.detailTitle.textContent = item.name;
-    if (el.detailName) el.detailName.value = item.name;
     if (el.detailPhoto) {
       el.detailPhoto.src = portraitUrl(loadedWorld.name, item.name);
       el.detailPhoto.alt = item.name;
     }
-    renderAttributes([]);
+    renderAttributeRows({ name: item.name, attributes: [] });
 
-    el.characterPanel.classList.add("is-open");
-    el.characterPanel.setAttribute("aria-hidden", "false");
+    const width = measureDetailWidth();
+    document.documentElement.style.setProperty("--detail-w", `${width}px`);
+
+    animateCharacterReflow(() => {
+      el.canvasBody?.classList.add("has-detail");
+      el.characterPanel.classList.add("is-open");
+      el.characterPanel.setAttribute("aria-hidden", "false");
+    });
 
     try {
       const detail = await fetchJSON(
         `/api/worlds/${encodeURIComponent(loadedWorld.name)}/characters/${encodeURIComponent(item.name)}`,
       );
-      renderAttributes(detail.attributes || []);
+      if (el.detailTitle) el.detailTitle.textContent = detail.name;
+      renderAttributeRows(detail);
     } catch (err) {
       debug("读取角色详情失败", err.message);
     }
@@ -427,20 +493,31 @@
 
   function closeCharacterPanel() {
     if (!el.characterPanel) return;
-    el.characterPanel.classList.remove("is-open");
-    el.characterPanel.setAttribute("aria-hidden", "true");
+    animateCharacterReflow(() => {
+      el.canvasBody?.classList.remove("has-detail");
+      el.characterPanel.classList.remove("is-open");
+      el.characterPanel.setAttribute("aria-hidden", "true");
+    });
     currentDetailName = null;
   }
 
   async function saveCharacterDetail() {
     if (!currentDetailName || !loadedWorld) return;
 
-    const name = el.detailName?.value.trim() ?? "";
+    const { name, attributes } = collectRows();
     if (!name) {
       showDetailError("姓名不能为空");
-      el.detailName?.focus();
+      el.attrList?.querySelector(".attr-value")?.focus();
       return;
     }
+
+    // 姓名这条属性值必须唯一，其他属性可以随便重复
+    const clash = state.characters.some((char) => char.name === name && char.name !== currentDetailName);
+    if (clash) {
+      showDetailError(`已经有角色叫「${name}」了，姓名不能重复`);
+      return;
+    }
+
     if (el.detailError) el.detailError.hidden = true;
 
     el.btnDetailSave.disabled = true;
@@ -450,7 +527,7 @@
         {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ name, attributes: collectAttributes() }),
+          body: JSON.stringify({ name, attributes }),
         },
       );
 
@@ -458,6 +535,7 @@
       if (el.detailTitle) el.detailTitle.textContent = updated.name;
       if (el.detailPhoto) el.detailPhoto.src = portraitUrl(loadedWorld.name, updated.name);
       await loadCharacters();
+      renderAttributeRows(updated);
       toast("角色属性已保存");
     } catch (err) {
       showDetailError(err.message);
