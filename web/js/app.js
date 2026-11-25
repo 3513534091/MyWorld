@@ -78,6 +78,11 @@
     presetPickerList: $("presetPickerList"),
     presetPickerEmpty: $("presetPickerEmpty"),
     btnPresetPickerCancel: $("btnPresetPickerCancel"),
+    presetMergeDialog: $("presetMergeDialog"),
+    presetMergeText: $("presetMergeText"),
+    btnMergeCancel: $("btnMergeCancel"),
+    btnMergeKeep: $("btnMergeKeep"),
+    btnMergeOverwrite: $("btnMergeOverwrite"),
     detailError: $("detailError"),
     btnCloseWorld: $("btnCloseWorld"),
     worldMenu: $("worldMenu"),
@@ -522,9 +527,12 @@
     currentDetailName = null;
   }
 
-  /* 面板「选用预设」：把预设的属性并进当前角色的属性行（同名覆盖、其余追加） */
+  /* 面板「选用预设」：把预设属性并进当前角色；已有值冲突时先问怎么处理 */
+  let pendingPresetPlan = null;
+
   function applyPresetToRows(item) {
     if (!el.attrList) return;
+
     const attributes = item.attributes ?? [];
     if (!attributes.length) {
       toast(`预设「${item.name}」是空的`);
@@ -532,30 +540,89 @@
     }
 
     const rows = [...el.attrList.querySelectorAll(".attr-row")].slice(1); // 第一行是姓名，跳过
-    let replaced = 0;
-    let added = 0;
+    const plan = { item, fills: [], appends: [], conflicts: [], same: 0 };
 
     for (const attr of attributes) {
       const label = (attr.label ?? "").trim();
       if (!label) continue;
+      const value = attr.value ?? "";
 
       const existing = rows.find(
         (row) => (row.querySelector(".attr-label-input")?.value ?? "").trim() === label,
       );
-      if (existing) {
-        const input = existing.querySelector(".attr-value");
-        if (input) input.value = attr.value ?? "";
-        replaced += 1;
+
+      if (!existing) {
+        plan.appends.push({ label, value });
+        continue;
+      }
+
+      const current = (existing.querySelector(".attr-value")?.value ?? "").trim();
+      if (current === value) {
+        plan.same += 1;
+      } else if (!current) {
+        plan.fills.push({ row: existing, value });
       } else {
-        const row = makeAttrRow({ label, value: attr.value ?? "" });
-        el.attrList.append(row);
-        rows.push(row);
-        added += 1;
+        plan.conflicts.push({ row: existing, label, current, value });
       }
     }
 
+    if (!plan.conflicts.length) {
+      runPresetPlan(plan, "keep");
+      return;
+    }
+
+    // 有冲突：先让用户选，别把已填的值直接冲掉
+    pendingPresetPlan = plan;
+    const preview = plan.conflicts
+      .slice(0, 4)
+      .map((entry) => `${entry.label}：${entry.current} → ${entry.value}`)
+      .join("；");
+    if (el.presetMergeText) {
+      el.presetMergeText.textContent =
+        `「${item.name}」里有 ${plan.conflicts.length} 条属性和你已填的值不一样：${preview}` +
+        (plan.conflicts.length > 4 ? " …" : "") +
+        "。要用预设的值覆盖吗？";
+    }
+    el.presetMergeDialog?.showModal();
+  }
+
+  function runPresetPlan(plan, policy) {
+    let overwritten = 0;
+    let kept = 0;
+    let filled = 0;
+    let appended = 0;
+
+    for (const entry of plan.conflicts) {
+      if (policy === "overwrite") {
+        const input = entry.row.querySelector(".attr-value");
+        if (input) input.value = entry.value;
+        overwritten += 1;
+      } else {
+        kept += 1;
+      }
+    }
+
+    for (const entry of plan.fills) {
+      const input = entry.row.querySelector(".attr-value");
+      if (input) input.value = entry.value;
+      filled += 1;
+    }
+
+    for (const entry of plan.appends) {
+      el.attrList.append(makeAttrRow({ label: entry.label, value: entry.value }));
+      appended += 1;
+    }
+
     if (el.detailError) el.detailError.hidden = true;
-    toast(`已套用「${item.name}」：覆盖 ${replaced} 条、新增 ${added} 条`);
+    pendingPresetPlan = null;
+
+    const parts = [];
+    if (overwritten) parts.push(`覆盖 ${overwritten} 条`);
+    if (kept) parts.push(`保留 ${kept} 条`);
+    if (filled) parts.push(`填充 ${filled} 条`);
+    if (appended) parts.push(`新增 ${appended} 条`);
+    if (plan.same) parts.push(`相同 ${plan.same} 条`);
+    toast(`已套用「${plan.item.name}」：${parts.join("、") || "没有变化"}`);
   }
 
   async function openPresetPicker() {
@@ -593,8 +660,9 @@
 
       button.append(name, meta);
       button.addEventListener("click", () => {
-        applyPresetToRows(item);
         el.presetPickerDialog.close();
+        // 等弹窗关完再开冲突确认，避免两个 modal 叠在一起
+        requestAnimationFrame(() => applyPresetToRows(item));
       });
       el.presetPickerList.append(button);
     }
@@ -1784,6 +1852,21 @@
   on(el.btnDetailSave, "click", saveCharacterDetail);
   on(el.btnUsePreset, "click", openPresetPicker);
   on(el.btnPresetPickerCancel, "click", () => el.presetPickerDialog?.close());
+  on(el.btnMergeKeep, "click", () => {
+    if (pendingPresetPlan) runPresetPlan(pendingPresetPlan, "keep");
+    el.presetMergeDialog?.close();
+  });
+  on(el.btnMergeOverwrite, "click", () => {
+    if (pendingPresetPlan) runPresetPlan(pendingPresetPlan, "overwrite");
+    el.presetMergeDialog?.close();
+  });
+  on(el.btnMergeCancel, "click", () => {
+    pendingPresetPlan = null;
+    el.presetMergeDialog?.close();
+  });
+  el.presetMergeDialog?.addEventListener("close", () => {
+    pendingPresetPlan = null;
+  });
 
   // 点面板里的立绘 → 选图 → 裁剪 → 直接上传
   on(el.detailPhotoBtn, "click", () => el.detailImage?.click());

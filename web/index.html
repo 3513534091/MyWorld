@@ -321,6 +321,19 @@
     </div>
   </dialog>
 
+  <!-- 套用预设时，已有值冲突的确认 -->
+  <dialog class="dialog" id="presetMergeDialog" aria-labelledby="presetMergeTitle">
+    <div class="dialog-form">
+      <h3 class="dialog-title" id="presetMergeTitle">已有值冲突</h3>
+      <p class="hint" id="presetMergeText"></p>
+      <div class="dialog-actions">
+        <button class="btn ghost" type="button" id="btnMergeCancel">取消</button>
+        <button class="btn ghost" type="button" id="btnMergeKeep">保留已有值</button>
+        <button class="btn" type="button" id="btnMergeOverwrite">用预设覆盖</button>
+      </div>
+    </div>
+  </dialog>
+
   <!-- 裁剪弹窗 -->
   <dialog class="dialog" id="cropDialog" aria-labelledby="cropTitle">
     <div class="dialog-form">
