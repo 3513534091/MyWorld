@@ -58,6 +58,13 @@ class OrderRequest(BaseModel):
     names: list[str] = []
 
 
+class CharacterUpdateRequest(BaseModel):
+    """PATCH 角色：改姓名 / 改属性。"""
+
+    name: str | None = None
+    attributes: list[Any] | None = None
+
+
 def display_host(host: str) -> str:
     """把 0.0.0.0 / :: 这类监听地址换成本机可点的地址。"""
     return "127.0.0.1" if host in {"0.0.0.0", "::", "[::]", ""} else host
@@ -265,6 +272,36 @@ def create_app(settings: Settings) -> FastAPI:
             raise HTTPException(status_code=exc.status, detail=str(exc)) from exc
         logger.info("保存角色顺序「%s」：%s", world, " / ".join(result["order"]))
         return result
+
+    @app.get("/api/worlds/{world}/characters/{name}", summary="角色详情")
+    async def api_character_detail(world: str, name: str) -> dict[str, Any]:
+        root = worlds.resolve_root(runtime.settings.data_dir)
+        try:
+            return characters.read_character(root, world, name)
+        except worlds.WorldError as exc:
+            raise HTTPException(status_code=exc.status, detail=str(exc)) from exc
+
+    @app.patch("/api/worlds/{world}/characters/{name}", summary="修改角色（姓名 / 属性）")
+    async def api_update_character(world: str, name: str, payload: CharacterUpdateRequest) -> dict[str, Any]:
+        root = worlds.resolve_root(runtime.settings.data_dir)
+        try:
+            updated = characters.update_character(
+                root,
+                world,
+                name,
+                new_name=payload.name,
+                attributes=payload.attributes,
+            )
+        except worlds.WorldError as exc:
+            raise HTTPException(status_code=exc.status, detail=str(exc)) from exc
+        logger.info(
+            "更新角色「%s/%s」→ %s（属性 %d 条）",
+            world,
+            name,
+            updated["name"],
+            len(updated["attributes"]),
+        )
+        return updated
 
     @app.delete("/api/worlds/{world}/characters/{name}", summary="删除角色")
     async def api_delete_character(world: str, name: str) -> dict[str, Any]:

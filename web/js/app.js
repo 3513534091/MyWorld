@@ -59,6 +59,16 @@
     characterWorldPath: $("characterWorldPath"),
     characterList: $("characterList"),
     characterEmpty: $("characterEmpty"),
+    characterPanel: $("characterPanel"),
+    detailTitle: $("detailTitle"),
+    detailPhoto: $("detailPhoto"),
+    detailName: $("detailName"),
+    attrList: $("attrList"),
+    btnAddAttr: $("btnAddAttr"),
+    btnCloseDetail: $("btnCloseDetail"),
+    btnDetailCancel: $("btnDetailCancel"),
+    btnDetailSave: $("btnDetailSave"),
+    detailError: $("detailError"),
     btnCloseWorld: $("btnCloseWorld"),
     worldMenu: $("worldMenu"),
     menuMoveFront: $("menuMoveFront"),
@@ -285,6 +295,10 @@
       const base = img.dataset.thumbBase;
       if (base) img.src = `${base}?theme=${theme}`;
     });
+    // 右侧面板开着时，立绘也跟着换
+    if (el.detailPhoto && loadedWorld && currentDetailName) {
+      el.detailPhoto.src = portraitUrl(loadedWorld.name, currentDetailName);
+    }
   }
 
   // ---------------- 底部加载栏 ----------------
@@ -320,10 +334,136 @@
 
   function closeLoadedWorld() {
     loadedWorld = null;
+    closeCharacterPanel();
     if (el.characterView) el.characterView.hidden = true;
     if (el.canvasHint) el.canvasHint.hidden = false;
     if (el.characterList) el.characterList.replaceChildren();
     if (el.characterEmpty) el.characterEmpty.hidden = true;
+  }
+
+  // ---------------- 角色属性面板（右侧滑入） ----------------
+
+  let currentDetailName = null;
+
+  function portraitUrl(worldName, charName) {
+    return `/api/worlds/${encodeURIComponent(worldName)}/characters/${encodeURIComponent(charName)}/portrait?theme=${currentTheme()}`;
+  }
+
+  function showDetailError(message) {
+    if (!el.detailError) return;
+    el.detailError.textContent = message;
+    el.detailError.hidden = false;
+  }
+
+  function makeAttrRow(label = "", value = "") {
+    const row = document.createElement("div");
+    row.className = "attr-row";
+
+    const labelInput = document.createElement("input");
+    labelInput.className = "input";
+    labelInput.placeholder = "属性名";
+    labelInput.value = label;
+    labelInput.setAttribute("aria-label", "属性名");
+
+    const valueInput = document.createElement("input");
+    valueInput.className = "input";
+    valueInput.placeholder = "值";
+    valueInput.value = value;
+    valueInput.setAttribute("aria-label", "属性值");
+
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.className = "attr-remove";
+    remove.textContent = "×";
+    remove.setAttribute("aria-label", "删除这条属性");
+    remove.addEventListener("click", () => row.remove());
+
+    row.append(labelInput, valueInput, remove);
+    return row;
+  }
+
+  function renderAttributes(attributes) {
+    if (!el.attrList) return;
+    el.attrList.replaceChildren();
+    for (const attr of attributes || []) {
+      el.attrList.append(makeAttrRow(attr.label ?? "", attr.value ?? ""));
+    }
+  }
+
+  function collectAttributes() {
+    return [...el.attrList.querySelectorAll(".attr-row")]
+      .map((row) => {
+        const inputs = row.querySelectorAll("input");
+        return { label: inputs[0].value.trim(), value: inputs[1].value.trim() };
+      })
+      .filter((attr) => attr.label || attr.value);
+  }
+
+  async function openCharacterPanel(item) {
+    if (!loadedWorld || !el.characterPanel) return;
+
+    currentDetailName = item.name;
+    if (el.detailError) el.detailError.hidden = true;
+    if (el.detailTitle) el.detailTitle.textContent = item.name;
+    if (el.detailName) el.detailName.value = item.name;
+    if (el.detailPhoto) {
+      el.detailPhoto.src = portraitUrl(loadedWorld.name, item.name);
+      el.detailPhoto.alt = item.name;
+    }
+    renderAttributes([]);
+
+    el.characterPanel.classList.add("is-open");
+    el.characterPanel.setAttribute("aria-hidden", "false");
+
+    try {
+      const detail = await fetchJSON(
+        `/api/worlds/${encodeURIComponent(loadedWorld.name)}/characters/${encodeURIComponent(item.name)}`,
+      );
+      renderAttributes(detail.attributes || []);
+    } catch (err) {
+      debug("读取角色详情失败", err.message);
+    }
+  }
+
+  function closeCharacterPanel() {
+    if (!el.characterPanel) return;
+    el.characterPanel.classList.remove("is-open");
+    el.characterPanel.setAttribute("aria-hidden", "true");
+    currentDetailName = null;
+  }
+
+  async function saveCharacterDetail() {
+    if (!currentDetailName || !loadedWorld) return;
+
+    const name = el.detailName?.value.trim() ?? "";
+    if (!name) {
+      showDetailError("姓名不能为空");
+      el.detailName?.focus();
+      return;
+    }
+    if (el.detailError) el.detailError.hidden = true;
+
+    el.btnDetailSave.disabled = true;
+    try {
+      const updated = await fetchJSON(
+        `/api/worlds/${encodeURIComponent(loadedWorld.name)}/characters/${encodeURIComponent(currentDetailName)}`,
+        {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name, attributes: collectAttributes() }),
+        },
+      );
+
+      currentDetailName = updated.name;
+      if (el.detailTitle) el.detailTitle.textContent = updated.name;
+      if (el.detailPhoto) el.detailPhoto.src = portraitUrl(loadedWorld.name, updated.name);
+      await loadCharacters();
+      toast("角色属性已保存");
+    } catch (err) {
+      showDetailError(err.message);
+    } finally {
+      el.btnDetailSave.disabled = false;
+    }
   }
 
   // ---------------- 角色 ----------------
@@ -368,6 +508,7 @@
       name.textContent = item.name;
 
       card.append(thumb, name);
+      card.addEventListener("click", () => openCharacterPanel(item));
       el.characterList.append(card);
     }
 
@@ -588,6 +729,7 @@
         await loadWorlds();
         debug("删除世界", item);
       } else {
+        if (currentDetailName === item.name) closeCharacterPanel();
         await loadCharacters();
         debug("删除角色", item);
       }
@@ -1301,6 +1443,17 @@
   initWorldMenu();
   on(el.btnConfirmOk, "click", confirmDelete);
   on(el.btnConfirmCancel, "click", () => el.confirmDialog?.close());
+
+  // 角色属性面板
+  on(el.btnAddAttr, "click", () => el.attrList?.append(makeAttrRow()));
+  on(el.btnCloseDetail, "click", closeCharacterPanel);
+  on(el.btnDetailCancel, "click", closeCharacterPanel);
+  on(el.btnDetailSave, "click", saveCharacterDetail);
+  document.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape") return;
+    if (el.cropDialog?.open || el.createDialog?.open || el.confirmDialog?.open) return;
+    if (el.characterPanel?.classList.contains("is-open")) closeCharacterPanel();
+  });
   on(el.createForm, "submit", (event) => {
     event.preventDefault();
     submitCreate();

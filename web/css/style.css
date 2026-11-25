@@ -1302,6 +1302,152 @@ body {
   }
 }
 
+/* ---------- 右侧角色属性面板（从右往左滑入） ---------- */
+.detail-panel {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  width: min(380px, 100%);
+  border-left: 1px solid var(--border);
+  background: var(--panel);
+  box-shadow: -18px 0 40px rgba(0, 0, 0, 0.35);
+  visibility: hidden;
+  transform: translateX(102%);
+  transition: transform 0.26s cubic-bezier(0.4, 0, 0.2, 1), visibility 0.26s;
+}
+
+.detail-panel.is-open {
+  visibility: visible;
+  transform: translateX(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .detail-panel {
+    transition: none;
+  }
+}
+
+.detail-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex: 0 0 auto;
+  padding: 12px 14px 12px 16px;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.detail-head strong {
+  font-size: var(--fs-base);
+  font-weight: 600;
+}
+
+.detail-head .btn.icon {
+  width: 30px;
+  height: 28px;
+  font-size: 13px;
+}
+
+.detail-body {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 14px;
+  min-height: 0;
+  padding: 14px 16px;
+  overflow-y: auto;
+}
+
+.detail-photo-wrap {
+  display: flex;
+  justify-content: center;
+}
+
+.detail-photo {
+  width: 180px;
+  aspect-ratio: 9 / 16;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  background: var(--chip-bg);
+  object-fit: cover;
+}
+
+.detail-label {
+  color: var(--text-faint);
+  font-size: var(--fs-tiny);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.detail-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.detail-attrs {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.attr-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.attr-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.attr-row .input {
+  padding: 5px 8px;
+  font-size: var(--fs-tiny);
+}
+
+.attr-remove {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-faint);
+  font-size: 14px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.attr-remove:hover {
+  border-color: var(--error);
+  color: var(--error);
+}
+
+.detail-foot {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 0 0 auto;
+  padding: 12px 16px;
+  border-top: 1px solid var(--border-soft);
+}
+
+.detail-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
 /* ---------- 滚动条 ---------- */
 ::-webkit-scrollbar {
   width: 10px;

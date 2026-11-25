@@ -211,6 +211,39 @@
           <p class="hint" id="characterEmpty" hidden>这个世界还没有角色，点最后那张虚线卡片新建一个。</p>
         </section>
 
+        <!-- 右侧角色属性面板 -->
+        <aside class="detail-panel" id="characterPanel" aria-hidden="true" aria-label="角色属性">
+          <header class="detail-head">
+            <strong id="detailTitle">角色</strong>
+            <button class="btn ghost icon" id="btnCloseDetail" type="button" aria-label="关闭面板">✕</button>
+          </header>
+
+          <div class="detail-body">
+            <div class="detail-photo-wrap">
+              <img class="detail-photo" id="detailPhoto" alt="" />
+            </div>
+
+            <label class="detail-field">
+              <span class="detail-label">姓名</span>
+              <input class="input" id="detailName" type="text" maxlength="64" autocomplete="off" spellcheck="false" />
+            </label>
+
+            <div class="detail-attrs">
+              <span class="detail-label">属性</span>
+              <div class="attr-list" id="attrList"></div>
+              <button class="btn ghost small" id="btnAddAttr" type="button">＋ 添加属性</button>
+            </div>
+          </div>
+
+          <footer class="detail-foot">
+            <p class="form-error" id="detailError" hidden></p>
+            <div class="detail-actions">
+              <button class="btn ghost" id="btnDetailCancel" type="button">取消</button>
+              <button class="btn" id="btnDetailSave" type="button">保存</button>
+            </div>
+          </footer>
+        </aside>
+
         <div class="canvas-badge" id="uptime">运行 00:00:00</div>
       </div>
     </section>

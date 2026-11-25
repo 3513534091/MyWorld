@@ -28,6 +28,7 @@ DIR_NAME = "role"
 LEGACY_DIR_NAME = "characters"
 META_NAME = "character.json"
 ORDER_NAME = "order.json"
+ATTRIBUTES_MAX = 50
 PORTRAIT_FILENAMES = (
     "portrait.png",
     "portrait.jpg",
@@ -175,6 +176,98 @@ def save_portrait(worlds_root: Path, world_name: str, raw_name: str, data: bytes
     target = directory / f"portrait{ext}"
     target.write_bytes(data)
     return target
+
+
+def _read_meta(directory: Path) -> dict[str, Any]:
+    meta = directory / META_NAME
+    if not meta.is_file():
+        return {}
+    try:
+        data = json.loads(meta.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def _normalize_attributes(items: Any) -> list[dict[str, str]]:
+    """把属性整理成 [{"label": ..., "value": ...}]，丢掉空行、限制条数与长度。"""
+    result: list[dict[str, str]] = []
+    if not isinstance(items, list):
+        return result
+
+    for item in items:
+        if isinstance(item, dict):
+            label = str(item.get("label", "")).strip()
+            value = str(item.get("value", "")).strip()
+        elif isinstance(item, (list, tuple)) and len(item) >= 2:
+            label = str(item[0]).strip()
+            value = str(item[1]).strip()
+        else:
+            continue
+        if not label and not value:
+            continue
+        result.append({"label": label[:40], "value": value[:500]})
+        if len(result) >= ATTRIBUTES_MAX:
+            break
+    return result
+
+
+def read_character(worlds_root: Path, world_name: str, raw_name: str) -> dict[str, Any]:
+    directory = _character_dir(worlds_root, world_name, raw_name)
+    meta = _read_meta(directory)
+    created = meta.get("created_at")
+    if not created:
+        created = datetime.fromtimestamp(directory.stat().st_mtime, tz=timezone.utc).isoformat(timespec="seconds")
+    return {
+        "name": directory.name,
+        "created_at": str(created),
+        "attributes": _normalize_attributes(meta.get("attributes")),
+        "path": f"data/{world_name}/{DIR_NAME}/{directory.name}",
+    }
+
+
+def update_character(
+    worlds_root: Path,
+    world_name: str,
+    raw_name: str,
+    *,
+    new_name: str | None = None,
+    attributes: Any = None,
+) -> dict[str, Any]:
+    """改名字（会重命名目录并同步 order.json）或改属性。"""
+    directory = _character_dir(worlds_root, world_name, raw_name)
+    old_name = directory.name
+    target_name = old_name
+
+    if new_name is not None:
+        target_name = validate_name(new_name)
+        if target_name != old_name:
+            target = directory.parent / target_name
+            if target.exists():
+                raise WorldError(f"角色「{target_name}」已经存在", status=409)
+            try:
+                directory.rename(target)
+            except OSError as exc:
+                raise WorldError(f"重命名失败：{exc.strerror or exc}") from exc
+            directory = target
+
+            order = [target_name if name == old_name else name for name in _read_order(directory.parent)]
+            if target_name not in order:
+                order.append(target_name)
+            save_order(worlds_root, world_name, order)
+
+    meta = _read_meta(directory)
+    meta["name"] = target_name
+    meta.setdefault("format", FORMAT_VERSION)
+    meta.setdefault("created_at", datetime.now(timezone.utc).isoformat(timespec="seconds"))
+    if attributes is not None:
+        meta["attributes"] = _normalize_attributes(attributes)
+
+    (directory / META_NAME).write_text(
+        json.dumps(meta, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    return read_character(worlds_root, world_name, target_name)
 
 
 def delete_character(worlds_root: Path, world_name: str, raw_name: str) -> dict[str, Any]:

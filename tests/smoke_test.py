@@ -328,6 +328,38 @@ async def run_checks(port: int, data_dir: str) -> list[tuple[str, bool, str]]:
         async with session.delete(f"{char_base}/{quote('测试角色')}") as response:
             checks.append(("删除不存在的角色返回 404", response.status == 404, str(response.status)))
 
+        # ---- 角色详情 / 属性 / 改名（用一次性角色，不干扰后续删除断言） ----
+        async with session.post(char_base, json={"name": "详情角色"}) as response:
+            checks.append(("创建详情用角色", response.status == 201, str(response.status)))
+
+        detail_url = f"{char_base}/{quote('详情角色')}"
+        async with session.get(detail_url) as response:
+            detail = await response.json()
+            checks.append(
+                ("GET 角色详情", response.status == 200 and detail.get("attributes") == [], str(detail.get("name")))
+            )
+
+        async with session.patch(
+            detail_url,
+            json={"attributes": [{"label": "年龄", "value": "17"}, {"label": "身份", "value": "旅人"}]},
+        ) as response:
+            detail = await response.json()
+            labels = [item["label"] for item in detail.get("attributes", [])]
+            checks.append(("PATCH 保存角色属性", response.status == 200 and labels == ["年龄", "身份"], str(labels)))
+
+        async with session.patch(detail_url, json={"name": "改名角色"}) as response:
+            detail = await response.json()
+            checks.append(("PATCH 角色改名", response.status == 200 and detail.get("name") == "改名角色", str(detail.get("name"))))
+
+        renamed_dir = Path(data_dir) / "测试世界" / "role" / "改名角色"
+        checks.append(("改名后目录已更新", renamed_dir.is_dir() and not (Path(data_dir) / "测试世界" / "role" / "详情角色").exists(), str(renamed_dir)))
+
+        async with session.patch(f"{char_base}/{quote('改名角色')}", json={"name": "留置角色"}) as response:
+            checks.append(("改成已存在的角色名返回 409", response.status == 409, str(response.status)))
+
+        async with session.delete(f"{char_base}/{quote('改名角色')}") as response:
+            checks.append(("清理详情用角色", response.status == 200, str(response.status)))
+
         # ---- 删除世界（放在世界相关断言之后，否则会把后面要用的目录删掉） ----
         async with session.delete(f"{base}/api/worlds/{quote('测试世界')}") as response:
             body = await response.json()

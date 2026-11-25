@@ -116,6 +116,46 @@ class CharacterTests(unittest.TestCase):
         with self.assertRaises(worlds.WorldError):
             characters.save_order(self.worlds_root, "山与海", ["../x"])
 
+    def test_read_and_update_attributes(self) -> None:
+        characters.create_character(self.worlds_root, "山与海", "阿澈")
+        detail = characters.read_character(self.worlds_root, "山与海", "阿澈")
+        self.assertEqual(detail["attributes"], [])
+
+        updated = characters.update_character(
+            self.worlds_root,
+            "山与海",
+            "阿澈",
+            attributes=[
+                {"label": "年龄", "value": "17"},
+                {"label": "", "value": ""},
+                {"label": "身份", "value": "旅人"},
+            ],
+        )
+        self.assertEqual([item["label"] for item in updated["attributes"]], ["年龄", "身份"])
+
+        again = characters.read_character(self.worlds_root, "山与海", "阿澈")
+        self.assertEqual(len(again["attributes"]), 2)
+        self.assertEqual(again["attributes"][1]["value"], "旅人")
+
+    def test_rename_character_keeps_order(self) -> None:
+        characters.create_character(self.worlds_root, "山与海", "阿澈")
+        characters.save_order(self.worlds_root, "山与海", ["阿澈"])
+
+        updated = characters.update_character(self.worlds_root, "山与海", "阿澈", new_name="白鹭")
+        self.assertEqual(updated["name"], "白鹭")
+        self.assertTrue((self.worlds_root / "山与海" / "role" / "白鹭").is_dir())
+        self.assertFalse((self.worlds_root / "山与海" / "role" / "阿澈").exists())
+
+        names = [item["name"] for item in characters.list_characters(self.worlds_root, "山与海")]
+        self.assertEqual(names, ["白鹭"])
+
+    def test_rename_conflict(self) -> None:
+        characters.create_character(self.worlds_root, "山与海", "阿澈")
+        characters.create_character(self.worlds_root, "山与海", "小满")
+        with self.assertRaises(worlds.WorldError) as ctx:
+            characters.update_character(self.worlds_root, "山与海", "阿澈", new_name="小满")
+        self.assertEqual(ctx.exception.status, 409)
+
     def test_characters_stay_inside_world(self) -> None:
         characters.create_character(self.worlds_root, "山与海", "阿澈")
         # 角色目录应该在世界的 role/ 下，而不是散落在别处

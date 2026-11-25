@@ -175,6 +175,10 @@ data/山与海/
 
 在角色卡上**右键**有两个操作：「移至最前」（排到第一位并落盘）和「删除」（连同立绘等文件，确认后不可恢复）；世界卡右键只有「删除」。
 
+**点一下角色卡**，右侧会滑入属性面板：上面是 9:16 立绘，下面是**姓名**和若干**属性**（属性名 + 值，可增删）；改完点「保存」写回 `character.json`。改姓名会重命名角色目录，并同步 `role/order.json` 里的顺序。
+
+![角色属性面板](docs/screenshot-character-panel.png)
+
 **拖动角色卡**可以调整显示顺序：顺序保存在 `role/order.json` 里，刷新或重开服务都保持；没记录过的角色按名字补在末尾。
 
 ![裁剪角色立绘](docs/screenshot-crop-portrait.png)
@@ -199,6 +203,8 @@ data/山与海/
 | POST | `/api/worlds/{世界}/characters` | 新建角色，体 `{"name": "名字"}`；重名 409 |
 | DELETE | `/api/worlds/{世界}/characters/{角色}` | 删除角色（连同立绘）；不存在 404 |
 | PUT | `/api/worlds/{世界}/characters/order` | 保存角色顺序，体 `{"names": [...]}`；未列出的按名字补末尾 |
+| GET | `/api/worlds/{世界}/characters/{角色}` | 角色详情（含 `attributes`） |
+| PATCH | `/api/worlds/{世界}/characters/{角色}` | 改姓名 / 属性，体 `{"name"?, "attributes"?}`；改名冲突 409 |
 | GET | `/api/worlds/{世界}/characters/{角色}/portrait` | 角色立绘；没有则按 `?theme=` 返回默认图 |
 | POST | `/api/worlds/{世界}/characters/{角色}/portrait` | 上传立绘（PNG/JPEG/WebP，≤5 MB） |
 | POST | `/api/demo/tick` | 向所有已连接页面广播一条事件（验证推送链路） |
@@ -264,9 +270,9 @@ myworld.config.example.json
 ```powershell
 python tests/test_config.py     # 配置与端口逻辑：11 项
 python tests/test_worlds.py     # 世界名字校验、创建列表、缩略图、删除：18 项
-python tests/test_characters.py # 角色创建、重名、立绘、删除、顺序、目录归属：14 项
+python tests/test_characters.py # 角色创建、重名、立绘、删除、顺序、改名、属性：17 项
 python tests/test_presets.py    # 预设创建、名字规则、不混入世界列表：5 项
-python tests/smoke_test.py      # 起真实服务，跑 HTTP + WebSocket + 世界/角色/预设 API：50 项
+python tests/smoke_test.py      # 起真实服务，跑 HTTP + WebSocket + 世界/角色/预设 API：57 项
 ```
 
 ## 下一步
