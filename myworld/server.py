@@ -304,6 +304,16 @@ def create_app(settings: Settings) -> FastAPI:
         )
         return updated
 
+    @app.delete("/api/worlds/{world}/characters/{name}/portrait", summary="恢复默认立绘")
+    async def api_delete_portrait(world: str, name: str) -> dict[str, Any]:
+        root = worlds.resolve_root(runtime.settings.data_dir)
+        try:
+            result = characters.delete_portrait(root, world, name)
+        except worlds.WorldError as exc:
+            raise HTTPException(status_code=exc.status, detail=str(exc)) from exc
+        logger.info("恢复默认立绘「%s/%s」（删除 %d 个文件）", world, name, len(result["removed"]))
+        return result
+
     @app.delete("/api/worlds/{world}/characters/{name}", summary="删除角色")
     async def api_delete_character(world: str, name: str) -> dict[str, Any]:
         root = worlds.resolve_root(runtime.settings.data_dir)

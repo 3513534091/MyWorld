@@ -289,6 +289,37 @@ async def run_checks(port: int, data_dir: str) -> list[tuple[str, bool, str]]:
                 )
             )
 
+        # ---- 恢复默认立绘 ----
+        async with session.delete(portrait_url) as response:
+            body = await response.json()
+            checks.append(
+                (
+                    "DELETE 立绘恢复默认",
+                    response.status == 200 and body.get("removed") == ["portrait.png"],
+                    str(body.get("removed")),
+                )
+            )
+
+        async with session.get(portrait_url) as response:
+            content_type = response.headers.get("Content-Type") or ""
+            checks.append(
+                (
+                    "恢复后返回默认占位图",
+                    response.status == 200 and "svg" in content_type,
+                    f"{response.status} {content_type}",
+                )
+            )
+
+        async with session.delete(portrait_url) as response:
+            body = await response.json()
+            checks.append(
+                (
+                    "再次恢复默认是幂等的",
+                    response.status == 200 and body.get("removed") == [],
+                    str(body.get("removed")),
+                )
+            )
+
         async with session.get(f"{base}/api/worlds/{quote('不存在的世界')}/characters") as response:
             checks.append(("不存在世界的角色列表 404", response.status == 404, str(response.status)))
 

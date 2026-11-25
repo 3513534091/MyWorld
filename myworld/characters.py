@@ -270,6 +270,21 @@ def update_character(
     return read_character(worlds_root, world_name, target_name)
 
 
+def delete_portrait(worlds_root: Path, world_name: str, raw_name: str) -> dict[str, Any]:
+    """删掉自定义立绘，回到默认占位图。"""
+    directory = _character_dir(worlds_root, world_name, raw_name)
+    removed: list[str] = []
+    for filename in PORTRAIT_FILENAMES:
+        target = directory / filename
+        if target.exists():
+            try:
+                target.unlink()
+            except OSError as exc:
+                raise WorldError(f"删除立绘失败：{exc.strerror or exc}") from exc
+            removed.append(filename)
+    return {"world": world_name, "name": directory.name, "removed": removed}
+
+
 def delete_character(worlds_root: Path, world_name: str, raw_name: str) -> dict[str, Any]:
     """删除角色目录（连同立绘等文件）。"""
     directory = _character_dir(worlds_root, world_name, raw_name)

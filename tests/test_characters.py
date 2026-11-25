@@ -149,6 +149,19 @@ class CharacterTests(unittest.TestCase):
         names = [item["name"] for item in characters.list_characters(self.worlds_root, "山与海")]
         self.assertEqual(names, ["白鹭"])
 
+    def test_delete_portrait_restores_default(self) -> None:
+        characters.create_character(self.worlds_root, "山与海", "阿澈")
+        path = characters.save_portrait(self.worlds_root, "山与海", "阿澈", b"fake-image", ".jpg")
+        self.assertTrue(path.is_file())
+
+        result = characters.delete_portrait(self.worlds_root, "山与海", "阿澈")
+        self.assertEqual(result["removed"], ["portrait.jpg"])
+        self.assertFalse(path.exists())
+
+        # 再删一次是幂等的，不报错
+        again = characters.delete_portrait(self.worlds_root, "山与海", "阿澈")
+        self.assertEqual(again["removed"], [])
+
     def test_rename_conflict(self) -> None:
         characters.create_character(self.worlds_root, "山与海", "阿澈")
         characters.create_character(self.worlds_root, "山与海", "小满")

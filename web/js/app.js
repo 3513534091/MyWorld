@@ -72,6 +72,7 @@
     detailError: $("detailError"),
     btnCloseWorld: $("btnCloseWorld"),
     worldMenu: $("worldMenu"),
+    menuRestoreDefault: $("menuRestoreDefault"),
     menuMoveFront: $("menuMoveFront"),
     menuDelete: $("menuDelete"),
     confirmDialog: $("confirmDialog"),
@@ -682,8 +683,9 @@
   function openWorldMenu(x, y) {
     if (!el.worldMenu) return;
 
-    // 「移至最前」只有角色才有
+    // 「恢复默认」「移至最前」只有角色才有
     const isCharacter = menuTarget?.type === "character";
+    if (el.menuRestoreDefault) el.menuRestoreDefault.hidden = !isCharacter;
     if (el.menuMoveFront) el.menuMoveFront.hidden = !isCharacter;
 
     el.worldMenu.hidden = false;
@@ -692,7 +694,7 @@
     const top = Math.max(8, Math.min(y, window.innerHeight - rect.height - 8));
     el.worldMenu.style.left = `${left}px`;
     el.worldMenu.style.top = `${top}px`;
-    (isCharacter ? el.menuMoveFront : el.menuDelete)?.focus();
+    (isCharacter ? el.menuRestoreDefault : el.menuDelete)?.focus();
   }
 
   function closeWorldMenu() {
@@ -720,6 +722,27 @@
       toast(`「${item.name}」已移至最前`);
     } catch (err) {
       toast("移动失败：" + err.message, "error");
+    }
+  }
+
+  /* 右键「恢复默认」：删掉自定义立绘，回到默认占位图 */
+  async function restoreDefaultPortrait(item) {
+    if (!loadedWorld) return;
+
+    try {
+      const result = await fetchJSON(
+        `/api/worlds/${encodeURIComponent(loadedWorld.name)}/characters/${encodeURIComponent(item.name)}/portrait`,
+        { method: "DELETE" },
+      );
+
+      clearPendingPortrait();
+      bumpCardPortrait(loadedWorld.name, item.name);
+      if (currentDetailName === item.name && el.detailPhoto) {
+        el.detailPhoto.src = `${portraitUrl(loadedWorld.name, item.name)}&v=${Date.now()}`;
+      }
+      toast(result.removed?.length ? "立绘已恢复默认" : "本来就是默认立绘");
+    } catch (err) {
+      toast("恢复默认失败：" + err.message, "error");
     }
   }
 
@@ -761,6 +784,11 @@
     el.worldList?.addEventListener("scroll", closeWorldMenu, true);
     el.characterList?.addEventListener("scroll", closeWorldMenu, true);
     window.addEventListener("resize", closeWorldMenu);
+
+    on(el.menuRestoreDefault, "click", () => {
+      closeWorldMenu();
+      if (menuTarget?.type === "character") restoreDefaultPortrait(menuTarget.item);
+    });
 
     on(el.menuMoveFront, "click", () => {
       closeWorldMenu();
