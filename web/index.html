@@ -285,10 +285,16 @@
         <p class="cover-meta" id="coverMeta" hidden></p>
       </div>
 
+      <div class="preset-field" id="presetField" hidden>
+        <span class="detail-label">预设内容（给角色用的属性）</span>
+        <div class="attr-list" id="presetAttrList"></div>
+        <button class="btn ghost small" id="btnPresetAddAttr" type="button">＋ 添加属性</button>
+      </div>
+
       <div class="dialog-fields">
         <input class="input" id="createName" type="text" placeholder="给世界取个名字" maxlength="64"
                autocomplete="off" spellcheck="false" aria-label="名字" />
-        <p class="hint">封面可以先不选，默认图照样能用；之后往世界目录里放一张
+        <p class="hint" id="createHint">封面可以先不选，默认图照样能用；之后往世界目录里放一张
           <code>thumbnail.png</code> 也能换。</p>
         <p class="form-error" id="createError" hidden></p>
       </div>

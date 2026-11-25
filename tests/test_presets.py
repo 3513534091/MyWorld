@@ -58,6 +58,38 @@ class PresetTests(unittest.TestCase):
         names = [item["name"] for item in worlds.list_worlds(self.worlds_root)]
         self.assertEqual(names, ["世界一"])
 
+    def test_create_with_attributes(self) -> None:
+        created = presets.create_preset(
+            self.root,
+            "角色模板",
+            [
+                {"label": "年龄", "value": "17"},
+                {"label": "", "value": ""},
+                {"label": "身份", "value": "旅人"},
+            ],
+        )
+        self.assertEqual([item["label"] for item in created["attributes"]], ["年龄", "身份"])
+
+        meta = json.loads((self.root / "角色模板" / "preset.json").read_text(encoding="utf-8"))
+        self.assertEqual(len(meta["attributes"]), 2)
+        self.assertEqual(meta["attributes"][1]["value"], "旅人")
+
+        listed = presets.list_presets(self.root)[0]
+        self.assertEqual([item["label"] for item in listed["attributes"]], ["年龄", "身份"])
+
+    def test_attributes_default_to_empty(self) -> None:
+        created = presets.create_preset(self.root, "空预设")
+        self.assertEqual(created["attributes"], [])
+        self.assertEqual(presets.list_presets(self.root)[0]["attributes"], [])
+
+    def test_attributes_allow_duplicates(self) -> None:
+        created = presets.create_preset(
+            self.root,
+            "重复值",
+            [{"label": "标签", "value": "红"}, {"label": "标签", "value": "红"}],
+        )
+        self.assertEqual(len(created["attributes"]), 2)
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

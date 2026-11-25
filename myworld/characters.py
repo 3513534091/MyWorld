@@ -189,7 +189,7 @@ def _read_meta(directory: Path) -> dict[str, Any]:
     return data if isinstance(data, dict) else {}
 
 
-def _normalize_attributes(items: Any) -> list[dict[str, str]]:
+def normalize_attributes(items: Any) -> list[dict[str, str]]:
     """把属性整理成 [{"label": ..., "value": ...}]，丢掉空行、限制条数与长度。"""
     result: list[dict[str, str]] = []
     if not isinstance(items, list):
@@ -221,7 +221,7 @@ def read_character(worlds_root: Path, world_name: str, raw_name: str) -> dict[st
     return {
         "name": directory.name,
         "created_at": str(created),
-        "attributes": _normalize_attributes(meta.get("attributes")),
+        "attributes": normalize_attributes(meta.get("attributes")),
         "path": f"data/{world_name}/{DIR_NAME}/{directory.name}",
     }
 
@@ -261,7 +261,7 @@ def update_character(
     meta.setdefault("format", FORMAT_VERSION)
     meta.setdefault("created_at", datetime.now(timezone.utc).isoformat(timespec="seconds"))
     if attributes is not None:
-        meta["attributes"] = _normalize_attributes(attributes)
+        meta["attributes"] = normalize_attributes(attributes)
 
     (directory / META_NAME).write_text(
         json.dumps(meta, ensure_ascii=False, indent=2) + "\n",

@@ -142,15 +142,29 @@ data/
 
 ```
 presets/
-  清晨光线/
-    preset.json     # {"name": "...", "created_at": "...", "format": 1}
+  角色模板/
+    preset.json     # 名字、创建时间、格式版本，以及给角色用的属性键值对
 ```
 
-在左侧功能区点「预设」，点底部的 **「创建新预设」** 卡片，在同一个弹窗式对话框里输入名字即可。预设和世界共用一套名字规则（长度、非法字符、Windows 保留名等），重名返回 409。
+一个预设的内容就是一组**给角色用的键值对**（属性名 + 值，值可以重复），例如：
+
+```json
+{
+  "name": "角色模板",
+  "format": 1,
+  "created_at": "2026-11-25T13:05:17+00:00",
+  "attributes": [
+    { "label": "年龄", "value": "17" },
+    { "label": "身份", "value": "旅人" }
+  ]
+}
+```
+
+在左侧功能区点「预设」，点底部的 **「创建新预设」**，在弹窗里填名字和若干「属性名 / 值」行即可（「＋ 添加属性」可以继续加）。预设和世界共用一套名字规则（长度、非法字符、Windows 保留名等），重名返回 409。预设列表里每项会显示「N 条属性」，鼠标悬停能看到具体内容。
+
+![创建预设](docs/screenshot-preset-dialog.png)
 
 ![预设面板](docs/screenshot-presets.png)
-
-> 预设目前只有目录与元数据，具体的「一套参数」内容等执行链路做完再定义。
 
 ## 角色（画布区的「角色」栏）
 
@@ -203,7 +217,7 @@ data/山与海/
 | GET | `/api/worlds/{名字}/thumbnail` | 世界缩略图；没有真实图片时按 `?theme=dark\|light` 返回对应默认图，世界不存在 404 |
 | POST | `/api/worlds/{名字}/thumbnail` | 上传封面（裁剪后的原图字节，PNG/JPEG/WebP，≤5 MB）；非图片 400、太大 413 |
 | GET | `/api/presets` | 列出 `presets/` 下所有预设 |
-| POST | `/api/presets` | 创建预设，体 `{"name": "名字"}`；重名 409、非法名 400 |
+| POST | `/api/presets` | 创建预设，体 `{"name": "名字", "attributes": [{"label": "...", "value": "..."}]}`；重名 409、非法名 400 |
 | GET | `/api/worlds/{世界}/characters` | 列出某个世界的角色 |
 | POST | `/api/worlds/{世界}/characters` | 新建角色，体 `{"name": "名字"}`；重名 409 |
 | DELETE | `/api/worlds/{世界}/characters/{角色}` | 删除角色（连同立绘）；不存在 404 |
@@ -277,8 +291,8 @@ myworld.config.example.json
 python tests/test_config.py     # 配置与端口逻辑：11 项
 python tests/test_worlds.py     # 世界名字校验、创建列表、缩略图、删除：18 项
 python tests/test_characters.py # 角色创建、重名、立绘、删除、顺序、改名、属性：17 项
-python tests/test_presets.py    # 预设创建、名字规则、不混入世界列表：5 项
-python tests/smoke_test.py      # 起真实服务，跑 HTTP + WebSocket + 世界/角色/预设 API：57 项
+python tests/test_presets.py    # 预设创建、属性内容、名字规则、不混入世界列表：8 项
+python tests/smoke_test.py      # 起真实服务，跑 HTTP + WebSocket + 世界/角色/预设 API：62 项
 ```
 
 ## 下一步

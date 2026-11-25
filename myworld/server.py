@@ -65,6 +65,13 @@ class CharacterUpdateRequest(BaseModel):
     attributes: list[Any] | None = None
 
 
+class PresetRequest(BaseModel):
+    """POST /api/presets：名字 + 给角色用的属性键值对。"""
+
+    name: str = ""
+    attributes: list[Any] | None = None
+
+
 def display_host(host: str) -> str:
     """把 0.0.0.0 / :: 这类监听地址换成本机可点的地址。"""
     return "127.0.0.1" if host in {"0.0.0.0", "::", "[::]", ""} else host
@@ -330,13 +337,18 @@ def create_app(settings: Settings) -> FastAPI:
         return {"root": str(root), "items": presets.list_presets(root)}
 
     @app.post("/api/presets", summary="创建新预设", status_code=201)
-    async def api_create_preset(payload: NameRequest) -> dict[str, Any]:
+    async def api_create_preset(payload: PresetRequest) -> dict[str, Any]:
         root = presets.resolve_root(worlds.resolve_root(runtime.settings.data_dir))
         try:
-            created = presets.create_preset(root, payload.name)
+            created = presets.create_preset(root, payload.name, payload.attributes)
         except worlds.WorldError as exc:
             raise HTTPException(status_code=exc.status, detail=str(exc)) from exc
-        logger.info("创建预设「%s」→ %s", created["name"], created["path"])
+        logger.info(
+            "创建预设「%s」→ %s（%d 条属性）",
+            created["name"],
+            created["path"],
+            len(created["attributes"]),
+        )
         return created
 
     @app.post("/api/worlds/{name}/thumbnail", summary="上传（裁剪后的）世界封面")

@@ -818,6 +818,12 @@ body {
   font-size: var(--fs-tiny);
 }
 
+.preset-meta {
+  flex: none;
+  color: var(--text-dim);
+  font-size: var(--fs-tiny);
+}
+
 /* ---------- 创建弹窗 ---------- */
 .dialog {
   width: min(360px, calc(100vw - 40px));
@@ -1486,6 +1492,24 @@ body {
 .detail-actions .btn {
   font-size: var(--fs-base);
   padding: 7px 16px;
+}
+
+.preset-field {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  background: var(--chip-bg);
+}
+
+.preset-field .attr-list {
+  gap: 8px;
+}
+
+.preset-field .attr-row {
+  grid-template-columns: 1fr 1.3fr auto;
 }
 
 /* ---------- 滚动条 ---------- */

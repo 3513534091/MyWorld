@@ -437,13 +437,24 @@ async def run_checks(port: int, data_dir: str) -> list[tuple[str, bool, str]]:
                 )
             )
 
-        async with session.post(base + "/api/presets", json={"name": "测试预设"}) as response:
+        async with session.post(
+            base + "/api/presets",
+            json={
+                "name": "测试预设",
+                "attributes": [
+                    {"label": "年龄", "value": "17"},
+                    {"label": "身份", "value": "旅人"},
+                ],
+            },
+        ) as response:
             preset = await response.json()
             checks.append(
                 (
-                    "POST /api/presets 创建预设",
-                    response.status == 201 and preset.get("path") == "presets/测试预设",
-                    f"{response.status} {preset.get('path')}",
+                    "POST /api/presets 创建预设（带属性）",
+                    response.status == 201
+                    and preset.get("path") == "presets/测试预设"
+                    and [item["label"] for item in preset.get("attributes", [])] == ["年龄", "身份"],
+                    f"{response.status} {preset.get('path')} {len(preset.get('attributes', []))}条",
                 )
             )
 
@@ -455,6 +466,26 @@ async def run_checks(port: int, data_dir: str) -> list[tuple[str, bool, str]]:
                 str(preset_dir),
             )
         )
+
+        preset_meta = json.loads((preset_dir / "preset.json").read_text(encoding="utf-8"))
+        checks.append(
+            (
+                "preset.json 里存了属性键值对",
+                len(preset_meta.get("attributes", [])) == 2,
+                str([item["label"] for item in preset_meta.get("attributes", [])]),
+            )
+        )
+
+        async with session.get(base + "/api/presets") as response:
+            listing = await response.json()
+            listed = listing.get("items", [{}])[0]
+            checks.append(
+                (
+                    "预设列表带出属性",
+                    len(listed.get("attributes", [])) == 2,
+                    str(listed.get("name")),
+                )
+            )
 
         async with session.post(base + "/api/presets", json={"name": "测试预设"}) as response:
             body = await response.json()

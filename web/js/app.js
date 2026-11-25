@@ -33,6 +33,10 @@
     createTitle: $("createTitle"),
     createName: $("createName"),
     createError: $("createError"),
+    createHint: $("createHint"),
+    presetField: $("presetField"),
+    presetAttrList: $("presetAttrList"),
+    btnPresetAddAttr: $("btnPresetAddAttr"),
     btnDialogSubmit: $("btnDialogSubmit"),
     btnDialogCancel: $("btnDialogCancel"),
     coverField: $("coverField"),
@@ -423,6 +427,16 @@
       }))
       .filter((attr) => attr.label || attr.value);
     return { name, attributes };
+  }
+
+  /* 创建预设时收集属性键值对 */
+  function collectPresetAttributes() {
+    return [...(el.presetAttrList?.querySelectorAll(".attr-row") ?? [])]
+      .map((row) => ({
+        label: row.querySelector(".attr-label-input")?.value.trim() ?? "",
+        value: row.querySelector(".attr-value")?.value.trim() ?? "",
+      }))
+      .filter((attr) => attr.label || attr.value);
   }
 
   /* 卡片重排时用 FLIP 动画：先量旧位置，改布局后再把差异补成 transform */
@@ -909,6 +923,24 @@
         : "点击选择本地图片，可裁剪成 16:9 封面";
     }
 
+    // 预设：填的是给角色用的属性键值对
+    const isPreset = mode === "preset";
+    if (el.presetField) el.presetField.hidden = !isPreset;
+    if (isPreset) {
+      if (el.presetAttrList) {
+        el.presetAttrList.replaceChildren();
+        el.presetAttrList.append(makeAttrRow());
+      }
+    }
+
+    if (el.createHint) {
+      el.createHint.textContent = isPreset
+        ? "这些键值对会存进 presets/<名字>/preset.json，之后可以套用到角色上。"
+        : isPortrait
+          ? "立绘可以先不选，之后在右侧面板里点立绘也能换。"
+          : "封面可以先不选，默认图照样能用；之后往世界目录里放一张 thumbnail.png 也能换。";
+    }
+
     el.createDialog.classList.toggle("is-wide", isWorld);
 
     el.createDialog.showModal();
@@ -947,7 +979,7 @@
       const created = await fetchJSON(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name }),
+        body: JSON.stringify({ name, ...(mode === "preset" ? { attributes: collectPresetAttributes() } : {}) }),
       });
 
       if (mode === "world" && cover.blob) {
@@ -1279,12 +1311,18 @@
       name.className = "preset-name";
       name.textContent = item.name;
 
+      const attributes = item.attributes ?? [];
+      const meta = document.createElement("span");
+      meta.className = "preset-meta";
+      meta.textContent = attributes.length ? `${attributes.length} 条属性` : "空预设";
+      meta.title = attributes.map((attr) => `${attr.label || "（无名称）"}：${attr.value}`).join("\n");
+
       const time = document.createElement("span");
       time.className = "preset-time";
       time.textContent = formatStartTime(item.created_at).replace(/:\d{2}$/, "");
       time.title = item.created_at ?? "";
 
-      row.append(name, time);
+      row.append(name, meta, time);
       el.presetList.append(row);
     }
   }
@@ -1646,6 +1684,11 @@
   on(el.createDialog, "close", clearCreateError);
 
   // 封面：选本地图片 → 裁剪弹窗
+  on(el.btnPresetAddAttr, "click", () => {
+    el.presetAttrList?.append(makeAttrRow());
+    el.presetAttrList?.lastElementChild?.querySelector(".attr-label-input")?.focus();
+  });
+
   on(el.coverPreview, "click", () => el.worldImage?.click());
   on(el.worldImage, "change", () => {
     const file = el.worldImage?.files?.[0];
