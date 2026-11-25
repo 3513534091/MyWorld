@@ -53,21 +53,57 @@
   </header>
 
   <main class="layout">
+    <!-- 最左侧竖向功能区：一个图标就是一栏内容 -->
+    <nav class="rail" aria-label="功能区">
+      <button class="rail-item is-active" data-pane="info" title="非发行版信息" aria-label="非发行版信息" aria-pressed="true">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="12" cy="12" r="8.6" fill="none" stroke="currentColor" stroke-width="1.6" />
+          <path d="M12 10.9v5.2" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" />
+          <circle cx="12" cy="8.2" r="0.95" fill="currentColor" />
+        </svg>
+      </button>
+      <button class="rail-item" data-pane="about" title="关于" aria-label="关于" aria-pressed="false">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="12" cy="12" r="8.6" fill="none" stroke="currentColor" stroke-width="1.6" />
+          <path d="M9.6 9.4a2.5 2.5 0 1 1 3.7 2.3c-.9.5-1.3 1-1.3 1.9v.4"
+                fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+          <circle cx="12" cy="17.1" r="0.95" fill="currentColor" />
+        </svg>
+      </button>
+      <button class="rail-item" data-pane="canvas" title="节点画布（即将推出）" aria-label="节点画布（即将推出）" disabled>
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <rect x="3.8" y="3.8" width="7" height="7" rx="1.4" fill="none" stroke="currentColor" stroke-width="1.6" />
+          <rect x="13.2" y="3.8" width="7" height="7" rx="1.4" fill="none" stroke="currentColor" stroke-width="1.6" />
+          <rect x="3.8" y="13.2" width="7" height="7" rx="1.4" fill="none" stroke="currentColor" stroke-width="1.6" />
+          <rect x="13.2" y="13.2" width="7" height="7" rx="1.4" fill="none" stroke="currentColor" stroke-width="1.6" />
+        </svg>
+      </button>
+    </nav>
+
+    <!-- 功能区对应的内容面板 -->
     <aside class="panel">
-      <h2>运行状态</h2>
-      <dl class="meta" id="meta"></dl>
-      <h2>关于这一版</h2>
-      <p class="hint">
-        这是骨架：静态前端 + 本地 FastAPI 服务 + WebSocket 双向通道。
-      </p>
-      <p class="hint">
-        <b>Ping</b> 是心跳，用来探活并测出延迟；<b>模拟服务端推送</b> 用来验证
-        「后端 → 页面」这条单向推送通道 —— 之后执行进度、队列变化都从这里推过来。
-      </p>
-      <p class="hint">
-        运行日志打在启动它的控制台窗口里（双击 MyWorld.exe 弹出的那个），
-        网页只负责界面。
-      </p>
+      <section class="pane" data-pane="info">
+        <h2>非发行版信息</h2>
+        <dl class="meta" id="meta"></dl>
+        <p class="hint">
+          本次运行的实际状态，与发布版本无关：换台机器、换个端口、重新启动，这里都会变。
+        </p>
+      </section>
+
+      <section class="pane" data-pane="about" hidden>
+        <h2>关于这一版</h2>
+        <p class="hint">
+          这是骨架：静态前端 + 本地 FastAPI 服务 + WebSocket 双向通道。
+        </p>
+        <p class="hint">
+          <b>Ping</b> 是心跳，用来探活并测出延迟；<b>模拟服务端推送</b> 用来验证
+          「后端 → 页面」这条单向推送通道 —— 之后执行进度、队列变化都从这里推过来。
+        </p>
+        <p class="hint">
+          运行日志打在启动它的控制台窗口里（双击 MyWorld.exe 弹出的那个），
+          网页只负责界面。
+        </p>
+      </section>
     </aside>
 
     <section class="canvas-wrap">

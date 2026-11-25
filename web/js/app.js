@@ -82,6 +82,29 @@
     }
   }
 
+  // ---------------- 左侧功能区 ----------------
+
+  function initRail() {
+    const items = Array.from(document.querySelectorAll(".rail-item"));
+    const panes = Array.from(document.querySelectorAll(".pane"));
+
+    function activate(name) {
+      items.forEach((item) => {
+        const active = item.dataset.pane === name;
+        item.classList.toggle("is-active", active);
+        item.setAttribute("aria-pressed", String(active));
+      });
+      panes.forEach((pane) => {
+        pane.hidden = pane.dataset.pane !== name;
+      });
+    }
+
+    items.forEach((item) => {
+      if (item.disabled) return;
+      item.addEventListener("click", () => activate(item.dataset.pane));
+    });
+  }
+
   // ---------------- 连接状态 ----------------
 
   function setConnection(status, label) {
@@ -304,6 +327,7 @@
   // ---------------- 启动 ----------------
 
   initTheme();
+  initRail();
   refreshStatus();
   loadConfig();
   connect();

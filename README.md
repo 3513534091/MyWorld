@@ -124,7 +124,7 @@ myworld/
   events.py            进程内事件总线（发布 → 多个 WS 订阅者）
   server.py            FastAPI 应用：REST + WebSocket + 静态托管
 web/
-  index.html           界面结构
+  index.html           界面结构：顶栏 / 左侧功能区 / 内容面板 / 画布
   css/style.css        明暗两套主题 + 排版刻度（全部是 CSS 变量）
   js/app.js            状态渲染、WS 连接/心跳/重连（日志在控制台，页面不放日志）
 tests/
