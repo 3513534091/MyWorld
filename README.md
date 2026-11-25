@@ -80,6 +80,7 @@ gcc -O2 -municode -static -static-libgcc -o MyWorld.exe tools\launcher.c
 
 - 强制某个主题：`http://127.0.0.1:8000/?theme=light`（截图、演示时方便）
 - 两套配色全部收敛在 [`web/css/style.css`](web/css/style.css) 的 CSS 变量里：`:root` 是深色，`:root[data-theme="light"]` 覆盖成浅色。加新组件时用变量，就不会在浅色下出现白底白字。
+- 字号也是变量：`--fs-base`（15px）、`--fs-small`、`--fs-tiny`、`--fs-heading`，外加 `--topbar-h`、`--panel-w`；想整体放大只改「排版刻度」那一段，不用逐个组件去调。
 
 ## 接口
 
@@ -124,7 +125,7 @@ myworld/
   server.py            FastAPI 应用：REST + WebSocket + 静态托管
 web/
   index.html           界面结构
-  css/style.css        明暗两套主题（CSS 变量）
+  css/style.css        明暗两套主题 + 排版刻度（全部是 CSS 变量）
   js/app.js            状态渲染、WS 连接/心跳/重连（日志在控制台，页面不放日志）
 tests/
   test_config.py       配置解析单元测试（纯标准库）
