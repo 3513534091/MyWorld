@@ -61,6 +61,7 @@
     characterEmpty: $("characterEmpty"),
     btnCloseWorld: $("btnCloseWorld"),
     worldMenu: $("worldMenu"),
+    menuMoveFront: $("menuMoveFront"),
     menuDelete: $("menuDelete"),
     confirmDialog: $("confirmDialog"),
     confirmText: $("confirmText"),
@@ -447,17 +448,46 @@
 
   function openWorldMenu(x, y) {
     if (!el.worldMenu) return;
+
+    // 「移至最前」只有角色才有
+    const isCharacter = menuTarget?.type === "character";
+    if (el.menuMoveFront) el.menuMoveFront.hidden = !isCharacter;
+
     el.worldMenu.hidden = false;
     const rect = el.worldMenu.getBoundingClientRect();
     const left = Math.max(8, Math.min(x, window.innerWidth - rect.width - 8));
     const top = Math.max(8, Math.min(y, window.innerHeight - rect.height - 8));
     el.worldMenu.style.left = `${left}px`;
     el.worldMenu.style.top = `${top}px`;
-    el.menuDelete?.focus();
+    (isCharacter ? el.menuMoveFront : el.menuDelete)?.focus();
   }
 
   function closeWorldMenu() {
     if (el.worldMenu) el.worldMenu.hidden = true;
+  }
+
+  /* 右键「移至最前」：把该角色排到第一个并落盘 */
+  async function moveCharacterToFront(item) {
+    if (!loadedWorld) return;
+
+    const current = state.characters.map((entry) => entry.name);
+    if (current[0] === item.name) {
+      toast(`「${item.name}」已经在最前面了`);
+      return;
+    }
+
+    const names = [item.name, ...current.filter((name) => name !== item.name)];
+    try {
+      await fetchJSON(`/api/worlds/${encodeURIComponent(loadedWorld.name)}/characters/order`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ names }),
+      });
+      await loadCharacters();
+      toast(`「${item.name}」已移至最前`);
+    } catch (err) {
+      toast("移动失败：" + err.message, "error");
+    }
   }
 
   function initWorldMenu() {
@@ -475,7 +505,7 @@
       });
     }
 
-    // 角色卡片用同一套菜单
+    // 角色卡片用同一套菜单，额外多一个「移至最前」
     if (el.characterList) {
       el.characterList.addEventListener("contextmenu", (event) => {
         const card = event.target.closest(".character-card");
@@ -498,6 +528,11 @@
     el.worldList?.addEventListener("scroll", closeWorldMenu, true);
     el.characterList?.addEventListener("scroll", closeWorldMenu, true);
     window.addEventListener("resize", closeWorldMenu);
+
+    on(el.menuMoveFront, "click", () => {
+      closeWorldMenu();
+      if (menuTarget?.type === "character") moveCharacterToFront(menuTarget.item);
+    });
 
     on(el.menuDelete, "click", () => {
       closeWorldMenu();
