@@ -230,7 +230,8 @@
           <footer class="detail-foot">
             <p class="form-error" id="detailError" hidden></p>
             <div class="detail-actions">
-              <button class="btn ghost" id="btnDetailCancel" type="button">取消</button>
+              <button class="btn ghost" id="btnUsePreset" type="button">选用预设</button>
+              <button class="btn ghost detail-cancel" id="btnDetailCancel" type="button">取消</button>
               <button class="btn" id="btnDetailSave" type="button">保存</button>
             </div>
           </footer>
@@ -305,6 +306,19 @@
     </form>
     <input type="file" id="worldImage" accept="image/png,image/jpeg,image/webp" hidden />
     <input type="file" id="detailImage" accept="image/png,image/jpeg,image/webp" hidden />
+  </dialog>
+
+  <!-- 选用预设（角色属性面板里点「选用预设」弹出） -->
+  <dialog class="dialog" id="presetPickerDialog" aria-labelledby="presetPickerTitle">
+    <div class="dialog-form">
+      <h3 class="dialog-title" id="presetPickerTitle">选用预设</h3>
+      <p class="hint">选中一个预设，它的属性会合并到当前角色：同名属性覆盖值，其余追加。</p>
+      <div class="preset-picker-list" id="presetPickerList"></div>
+      <p class="hint" id="presetPickerEmpty" hidden>还没有预设，先到左侧「预设」里建一个。</p>
+      <div class="dialog-actions">
+        <button class="btn ghost" type="button" id="btnPresetPickerCancel">取消</button>
+      </div>
+    </div>
   </dialog>
 
   <!-- 裁剪弹窗 -->

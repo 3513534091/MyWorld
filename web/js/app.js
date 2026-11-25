@@ -73,6 +73,11 @@
     btnCloseDetail: $("btnCloseDetail"),
     btnDetailCancel: $("btnDetailCancel"),
     btnDetailSave: $("btnDetailSave"),
+    btnUsePreset: $("btnUsePreset"),
+    presetPickerDialog: $("presetPickerDialog"),
+    presetPickerList: $("presetPickerList"),
+    presetPickerEmpty: $("presetPickerEmpty"),
+    btnPresetPickerCancel: $("btnPresetPickerCancel"),
     detailError: $("detailError"),
     btnCloseWorld: $("btnCloseWorld"),
     worldMenu: $("worldMenu"),
@@ -515,6 +520,86 @@
       el.characterPanel.setAttribute("aria-hidden", "true");
     });
     currentDetailName = null;
+  }
+
+  /* 面板「选用预设」：把预设的属性并进当前角色的属性行（同名覆盖、其余追加） */
+  function applyPresetToRows(item) {
+    if (!el.attrList) return;
+    const attributes = item.attributes ?? [];
+    if (!attributes.length) {
+      toast(`预设「${item.name}」是空的`);
+      return;
+    }
+
+    const rows = [...el.attrList.querySelectorAll(".attr-row")].slice(1); // 第一行是姓名，跳过
+    let replaced = 0;
+    let added = 0;
+
+    for (const attr of attributes) {
+      const label = (attr.label ?? "").trim();
+      if (!label) continue;
+
+      const existing = rows.find(
+        (row) => (row.querySelector(".attr-label-input")?.value ?? "").trim() === label,
+      );
+      if (existing) {
+        const input = existing.querySelector(".attr-value");
+        if (input) input.value = attr.value ?? "";
+        replaced += 1;
+      } else {
+        const row = makeAttrRow({ label, value: attr.value ?? "" });
+        el.attrList.append(row);
+        rows.push(row);
+        added += 1;
+      }
+    }
+
+    if (el.detailError) el.detailError.hidden = true;
+    toast(`已套用「${item.name}」：覆盖 ${replaced} 条、新增 ${added} 条`);
+  }
+
+  async function openPresetPicker() {
+    if (!el.presetPickerDialog || !el.presetPickerList) return;
+
+    el.presetPickerList.replaceChildren();
+    if (el.presetPickerEmpty) el.presetPickerEmpty.hidden = true;
+
+    let items = [];
+    try {
+      const data = await fetchJSON("/api/presets");
+      items = data.items ?? [];
+    } catch (err) {
+      toast("读取预设失败：" + err.message, "error");
+      return;
+    }
+
+    if (!items.length && el.presetPickerEmpty) el.presetPickerEmpty.hidden = false;
+
+    for (const item of items) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "preset-pick";
+      button.dataset.name = item.name;
+
+      const name = document.createElement("span");
+      name.className = "preset-pick-name";
+      name.textContent = item.name;
+
+      const attributes = item.attributes ?? [];
+      const meta = document.createElement("span");
+      meta.className = "preset-pick-meta";
+      meta.textContent = attributes.length ? `${attributes.length} 条属性` : "空预设";
+      meta.title = attributes.map((attr) => `${attr.label || "（无名称）"}：${attr.value}`).join("\n");
+
+      button.append(name, meta);
+      button.addEventListener("click", () => {
+        applyPresetToRows(item);
+        el.presetPickerDialog.close();
+      });
+      el.presetPickerList.append(button);
+    }
+
+    el.presetPickerDialog.showModal();
   }
 
   async function saveCharacterDetail() {
@@ -1697,6 +1782,8 @@
   on(el.btnCloseDetail, "click", closeCharacterPanel);
   on(el.btnDetailCancel, "click", closeCharacterPanel);
   on(el.btnDetailSave, "click", saveCharacterDetail);
+  on(el.btnUsePreset, "click", openPresetPicker);
+  on(el.btnPresetPickerCancel, "click", () => el.presetPickerDialog?.close());
 
   // 点面板里的立绘 → 选图 → 裁剪 → 直接上传
   on(el.detailPhotoBtn, "click", () => el.detailImage?.click());
