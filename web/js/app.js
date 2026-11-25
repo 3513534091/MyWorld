@@ -36,6 +36,7 @@
     reconnectMax: 15000,
     heartbeat: null,
     pingAt: 0,
+    failures: 0,
     serverUptime: 0,
     syncedAt: 0,
     config: null,
@@ -252,7 +253,9 @@
 
     ws.onopen = () => {
       state.connected = true;
+      state.failures = 0;
       state.reconnectDelay = 1000;
+      el.pill.title = "WebSocket 已连接";
       setConnection("on", "已连接");
       startHeartbeat();
     };
@@ -273,8 +276,15 @@
     ws.onclose = (event) => {
       state.connected = false;
       stopHeartbeat();
-      setConnection("off", "重连中");
-      debug("断开", event.code, "将于", state.reconnectDelay, "ms 后重连");
+      state.failures += 1;
+      // 连续失败就别再说“重连中”了：后端多半没起来
+      if (state.failures >= 3) {
+        setConnection("off", "连不上后端");
+        el.pill.title = "没连上本地服务：MyWorld.exe 可能已退出（关闭控制台窗口会停掉它）";
+      } else {
+        setConnection("off", "重连中");
+      }
+      debug("断开", event.code, "第", state.failures, "次失败，", state.reconnectDelay, "ms 后重连");
       scheduleReconnect();
     };
   }
