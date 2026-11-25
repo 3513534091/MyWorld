@@ -1,0 +1,22 @@
+[project]
+name = "myworld"
+version = "0.1.0"
+description = "MyWorld —— 浏览器界面 + 本地 Python 服务的个人工作台"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+dependencies = [
+    "fastapi>=0.115",
+    "uvicorn>=0.30",
+    "websockets>=12",
+]
+
+[project.scripts]
+myworld = "myworld.__main__:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["myworld"]
