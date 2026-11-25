@@ -90,6 +90,32 @@ class CharacterTests(unittest.TestCase):
                 with self.assertRaises(worlds.WorldError):
                     characters.delete_character(self.worlds_root, "山与海", bad)
 
+    def test_order_is_saved_and_listed(self) -> None:
+        for name in ("甲", "乙", "丙"):
+            characters.create_character(self.worlds_root, "山与海", name)
+
+        # 没保存顺序时按名字（码位）排序：丙 < 乙 < 甲
+        names = [item["name"] for item in characters.list_characters(self.worlds_root, "山与海")]
+        self.assertEqual(names, ["丙", "乙", "甲"])
+
+        saved = characters.save_order(self.worlds_root, "山与海", ["甲", "丙", "乙"])
+        self.assertEqual(saved["order"], ["甲", "丙", "乙"])
+
+        names = [item["name"] for item in characters.list_characters(self.worlds_root, "山与海")]
+        self.assertEqual(names, ["甲", "丙", "乙"])
+
+    def test_order_ignores_unknown_and_dedupes(self) -> None:
+        characters.create_character(self.worlds_root, "山与海", "阿澈")
+        characters.create_character(self.worlds_root, "山与海", "小满")
+
+        saved = characters.save_order(self.worlds_root, "山与海", ["小满", "不存在", "小满"])
+        # 未知的忽略、重复的去重、没提到的补在末尾
+        self.assertEqual(saved["order"], ["小满", "阿澈"])
+
+    def test_order_rejects_invalid_name(self) -> None:
+        with self.assertRaises(worlds.WorldError):
+            characters.save_order(self.worlds_root, "山与海", ["../x"])
+
     def test_characters_stay_inside_world(self) -> None:
         characters.create_character(self.worlds_root, "山与海", "阿澈")
         # 角色目录应该在世界的 role/ 下，而不是散落在别处

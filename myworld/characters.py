@@ -27,6 +27,7 @@ FORMAT_VERSION = 1
 DIR_NAME = "role"
 LEGACY_DIR_NAME = "characters"
 META_NAME = "character.json"
+ORDER_NAME = "order.json"
 PORTRAIT_FILENAMES = (
     "portrait.png",
     "portrait.jpg",
@@ -72,12 +73,32 @@ def _created_at(directory: Path) -> str | None:
     return str(created) if created else None
 
 
+def _read_order(root: Path) -> list[str]:
+    path = root / ORDER_NAME
+    if not path.is_file():
+        return []
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return []
+    if isinstance(data, dict):
+        data = data.get("order", [])
+    if not isinstance(data, list):
+        return []
+    return [str(item) for item in data]
+
+
 def list_characters(worlds_root: Path, world_name: str) -> list[dict[str, Any]]:
     root = _root(worlds_root, world_name)
+
+    # 先按保存的顺序，再按名字补上没记录过的
+    order = _read_order(root)
+    index = {name: i for i, name in enumerate(order)}
+    directories = [entry for entry in root.iterdir() if entry.is_dir()]
+    directories.sort(key=lambda entry: (index.get(entry.name, len(order)), entry.name.lower()))
+
     items: list[dict[str, Any]] = []
-    for entry in sorted(root.iterdir(), key=lambda item: item.name.lower()):
-        if not entry.is_dir():
-            continue
+    for entry in directories:
         created = _created_at(entry)
         if created is None:
             mtime = datetime.fromtimestamp(entry.stat().st_mtime, tz=timezone.utc)
@@ -90,6 +111,27 @@ def list_characters(worlds_root: Path, world_name: str) -> list[dict[str, Any]]:
             }
         )
     return items
+
+
+def save_order(worlds_root: Path, world_name: str, names: list[str]) -> dict[str, Any]:
+    """保存角色显示顺序；没提到的角色按名字补在末尾。"""
+    root = _root(worlds_root, world_name)
+    existing = {entry.name for entry in root.iterdir() if entry.is_dir()}
+
+    ordered: list[str] = []
+    for raw in names or []:
+        name = validate_name(raw)
+        if name in existing and name not in ordered:
+            ordered.append(name)
+
+    for name in sorted(existing - set(ordered), key=str.lower):
+        ordered.append(name)
+
+    (root / ORDER_NAME).write_text(
+        json.dumps({"order": ordered}, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    return {"world": world_name, "order": ordered}
 
 
 def create_character(worlds_root: Path, world_name: str, raw_name: str) -> dict[str, Any]:

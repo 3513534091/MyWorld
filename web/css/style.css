@@ -677,7 +677,16 @@ body {
   color: var(--text);
   font: inherit;
   text-align: center;
-  cursor: pointer;
+  cursor: grab;
+}
+
+.character-card.is-dragging {
+  opacity: 0.45;
+  cursor: grabbing;
+}
+
+.character-card.is-dragging .character-thumb {
+  border-color: var(--accent);
 }
 
 .character-thumb {

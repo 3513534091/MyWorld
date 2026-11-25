@@ -335,6 +335,7 @@
       card.className = "character-card";
       card.dataset.name = item.name;
       card.title = `${item.name} · ${formatStartTime(item.created_at)}`;
+      card.draggable = true;
 
       const thumb = document.createElement("div");
       thumb.className = "character-thumb";
@@ -366,6 +367,62 @@
     tile.innerHTML = `<span class="character-create-plus">＋</span><span>新建角色</span>`;
     tile.addEventListener("click", () => openCreateDialog("character"));
     return tile;
+  }
+
+  /* 拖动角色卡片调整顺序（HTML5 拖放，落下后写回 order.json） */
+  function initCharacterDrag() {
+    const list = el.characterList;
+    if (!list) return;
+
+    let dragging = null;
+
+    list.addEventListener("dragstart", (event) => {
+      const card = event.target.closest?.(".character-card");
+      if (!card) return;
+      dragging = card;
+      card.classList.add("is-dragging");
+      if (event.dataTransfer) {
+        event.dataTransfer.effectAllowed = "move";
+        event.dataTransfer.setData("text/plain", card.dataset.name);
+      }
+    });
+
+    list.addEventListener("dragover", (event) => {
+      if (!dragging) return;
+      const target = event.target.closest?.(".character-card");
+      if (!target || target === dragging) return;
+
+      event.preventDefault();
+      const rect = target.getBoundingClientRect();
+      const after = event.clientX > rect.left + rect.width / 2;
+      list.insertBefore(dragging, after ? target.nextSibling : target);
+    });
+
+    list.addEventListener("drop", (event) => event.preventDefault());
+
+    list.addEventListener("dragend", async () => {
+      if (!dragging) return;
+      dragging.classList.remove("is-dragging");
+
+      const names = [...list.querySelectorAll(".character-card")].map((card) => card.dataset.name);
+      const before = state.characters.map((item) => item.name);
+      dragging = null;
+
+      if (!loadedWorld || names.join("\u0000") === before.join("\u0000")) return;
+
+      try {
+        await fetchJSON(`/api/worlds/${encodeURIComponent(loadedWorld.name)}/characters/order`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ names }),
+        });
+        await loadCharacters();
+        debug("角色顺序已保存", names);
+      } catch (err) {
+        debug("保存角色顺序失败", err.message);
+        await loadCharacters();
+      }
+    });
   }
 
   // ---------------- 世界卡片右键菜单 ----------------
@@ -1212,6 +1269,7 @@
   on(el.btnCropApply, "click", applyCrop);
   initCropDrag();
   initCropWheel();
+  initCharacterDrag();
   refreshStatus();
   loadConfig();
   loadWorlds();

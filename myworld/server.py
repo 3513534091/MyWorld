@@ -52,6 +52,12 @@ class NameRequest(BaseModel):
     name: str = ""
 
 
+class OrderRequest(BaseModel):
+    """PUT /api/worlds/{世界}/characters/order 的请求体。"""
+
+    names: list[str] = []
+
+
 def display_host(host: str) -> str:
     """把 0.0.0.0 / :: 这类监听地址换成本机可点的地址。"""
     return "127.0.0.1" if host in {"0.0.0.0", "::", "[::]", ""} else host
@@ -249,6 +255,16 @@ def create_app(settings: Settings) -> FastAPI:
 
         logger.info("更新角色立绘「%s/%s」→ %s（%.1f KB）", world, name, target.name, len(data) / 1024)
         return {"world": world, "name": name, "portrait": target.name, "bytes": len(data)}
+
+    @app.put("/api/worlds/{world}/characters/order", summary="保存角色显示顺序")
+    async def api_character_order(world: str, payload: OrderRequest) -> dict[str, Any]:
+        root = worlds.resolve_root(runtime.settings.data_dir)
+        try:
+            result = characters.save_order(root, world, payload.names)
+        except worlds.WorldError as exc:
+            raise HTTPException(status_code=exc.status, detail=str(exc)) from exc
+        logger.info("保存角色顺序「%s」：%s", world, " / ".join(result["order"]))
+        return result
 
     @app.delete("/api/worlds/{world}/characters/{name}", summary="删除角色")
     async def api_delete_character(world: str, name: str) -> dict[str, Any]:

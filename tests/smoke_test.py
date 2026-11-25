@@ -295,6 +295,21 @@ async def run_checks(port: int, data_dir: str) -> list[tuple[str, bool, str]]:
         # 再建一个角色留着，验证它随世界一起被删
         await session.post(char_base, json={"name": "留置角色"})
 
+        async with session.put(char_base + "/order", json={"names": ["留置角色", "测试角色"]}) as response:
+            body = await response.json()
+            checks.append(
+                (
+                    "PUT 保存角色顺序",
+                    response.status == 200 and body.get("order") == ["留置角色", "测试角色"],
+                    str(body.get("order")),
+                )
+            )
+
+        async with session.get(char_base) as response:
+            listing = await response.json()
+            names = [item["name"] for item in listing.get("items", [])]
+            checks.append(("列表按保存的顺序返回", names == ["留置角色", "测试角色"], str(names)))
+
         async with session.delete(f"{char_base}/{quote('测试角色')}") as response:
             body = await response.json()
             checks.append(
