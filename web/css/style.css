@@ -1342,22 +1342,12 @@ body {
   }
 }
 
-.detail-head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  flex: 0 0 auto;
-  padding: 14px 14px 14px 18px;
-  border-bottom: 1px solid var(--border-soft);
-}
-
-.detail-head strong {
-  font-size: 18px;
-  font-weight: 600;
-}
-
-.detail-head .btn.icon {
+/* 关闭按钮浮在右上角，不再占用一条标题栏 */
+.detail-close {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  z-index: 2;
   width: 30px;
   height: 28px;
   font-size: 14px;
@@ -1369,7 +1359,7 @@ body {
   flex-direction: column;
   gap: 16px;
   min-height: 0;
-  padding: 16px 18px;
+  padding: 46px 18px 16px;
   overflow-y: auto;
 }
 

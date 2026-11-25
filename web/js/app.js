@@ -61,7 +61,6 @@
     characterEmpty: $("characterEmpty"),
     characterPanel: $("characterPanel"),
     canvasBody: $("canvasBody"),
-    detailTitle: $("detailTitle"),
     detailPhoto: $("detailPhoto"),
     attrList: $("attrList"),
     btnAddAttr: $("btnAddAttr"),
@@ -464,7 +463,6 @@
 
     currentDetailName = item.name;
     if (el.detailError) el.detailError.hidden = true;
-    if (el.detailTitle) el.detailTitle.textContent = item.name;
     if (el.detailPhoto) {
       el.detailPhoto.src = portraitUrl(loadedWorld.name, item.name);
       el.detailPhoto.alt = item.name;
@@ -484,7 +482,6 @@
       const detail = await fetchJSON(
         `/api/worlds/${encodeURIComponent(loadedWorld.name)}/characters/${encodeURIComponent(item.name)}`,
       );
-      if (el.detailTitle) el.detailTitle.textContent = detail.name;
       renderAttributeRows(detail);
     } catch (err) {
       debug("读取角色详情失败", err.message);
@@ -532,7 +529,6 @@
       );
 
       currentDetailName = updated.name;
-      if (el.detailTitle) el.detailTitle.textContent = updated.name;
       if (el.detailPhoto) el.detailPhoto.src = portraitUrl(loadedWorld.name, updated.name);
       await loadCharacters();
       renderAttributeRows(updated);
