@@ -424,6 +424,36 @@ body {
   white-space: nowrap;
 }
 
+.footer-target {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--chip-bg);
+  color: var(--text-dim);
+  font-family: var(--mono);
+  font-size: var(--fs-small);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.footer-target.is-empty {
+  color: var(--text-faint);
+  font-family: inherit;
+}
+
+.btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.btn:disabled:hover {
+  background: var(--btn-bg);
+  border-color: var(--btn-border);
+}
+
 .panel h2 {
   margin: 0 0 11px;
   color: var(--text-faint);
@@ -524,6 +554,51 @@ body {
   color: var(--text-faint);
   font-family: var(--mono);
   font-size: var(--fs-tiny);
+}
+
+/* 加载某个世界后，画布上的占位视图 */
+.canvas-world {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 24px;
+  text-align: center;
+}
+
+.canvas-world-kicker {
+  color: var(--text-faint);
+  font-size: var(--fs-tiny);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}
+
+.canvas-world h3 {
+  margin: 0;
+  color: var(--text);
+  font-size: 26px;
+  font-weight: 600;
+}
+
+.canvas-world code {
+  padding: 3px 10px;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-sm);
+  background: var(--chip-bg);
+  color: var(--text-faint);
+  font-family: var(--mono);
+  font-size: var(--fs-small);
+}
+
+.canvas-world .hint {
+  max-width: 460px;
+}
+
+.canvas-world .btn {
+  margin-top: 6px;
 }
 
 /* ---------- 世界面板 ---------- */

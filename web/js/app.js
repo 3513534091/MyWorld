@@ -29,9 +29,14 @@
     worldError: $("worldError"),
     worldList: $("worldList"),
     worldEmpty: $("worldEmpty"),
-    loadWorld: $("loadWorld"),
+    loadTarget: $("loadTarget"),
     btnLoadWorld: $("btnLoadWorld"),
     loadError: $("loadError"),
+    canvasHint: $("canvasHint"),
+    canvasWorld: $("canvasWorld"),
+    canvasWorldName: $("canvasWorldName"),
+    canvasWorldPath: $("canvasWorldPath"),
+    btnCloseWorld: $("btnCloseWorld"),
   };
 
   const state = {
@@ -129,6 +134,7 @@
   // ---------------- 世界 ----------------
 
   let selectedWorld = null;
+  let selectedItem = null;
 
   function showWorldError(message) {
     el.worldError.textContent = message;
@@ -153,6 +159,11 @@
   function renderWorlds(items) {
     el.worldList.replaceChildren();
     el.worldEmpty.hidden = items.length > 0;
+
+    // 选中的世界可能已经不在了
+    if (selectedWorld && !items.some((item) => item.name === selectedWorld)) {
+      clearSelection();
+    }
 
     for (const item of items) {
       const card = document.createElement("button");
@@ -196,11 +207,32 @@
   }
 
   function selectWorld(item, node) {
+    selectedItem = item;
     selectedWorld = item.name;
     el.worldList.querySelectorAll(".world-card").forEach((el2) => {
       el2.classList.toggle("is-selected", el2 === node);
     });
+    if (el.loadTarget) {
+      el.loadTarget.textContent = item.name;
+      el.loadTarget.classList.remove("is-empty");
+    }
+    if (el.btnLoadWorld) el.btnLoadWorld.disabled = false;
+    clearLoadError();
     debug("选择世界", item);
+  }
+
+  /* 选中项没了（比如目录被删）就回到未选中状态 */
+  function clearSelection() {
+    selectedItem = null;
+    selectedWorld = null;
+    el.worldList.querySelectorAll(".world-card").forEach((card) => {
+      card.classList.remove("is-selected");
+    });
+    if (el.loadTarget) {
+      el.loadTarget.textContent = "未选择世界";
+      el.loadTarget.classList.add("is-empty");
+    }
+    if (el.btnLoadWorld) el.btnLoadWorld.disabled = true;
   }
 
   /* 主题切换后，让默认缩略图跟着换版本 */
@@ -226,47 +258,22 @@
     el.loadError.hidden = true;
   }
 
-  async function loadWorldByName() {
-    if (!el.loadWorld) return;
-
-    const raw = el.loadWorld.value.trim();
-    if (!raw) {
-      showLoadError("先填一个世界名字");
-      el.loadWorld.focus();
+  async function loadSelectedWorld() {
+    if (!selectedItem) {
+      showLoadError("先选中一个世界");
       return;
     }
+    clearLoadError();
+    if (el.canvasHint) el.canvasHint.hidden = true;
+    if (el.canvasWorld) el.canvasWorld.hidden = false;
+    if (el.canvasWorldName) el.canvasWorldName.textContent = selectedItem.name;
+    if (el.canvasWorldPath) el.canvasWorldPath.textContent = selectedItem.path;
+    debug("加载世界", selectedItem);
+  }
 
-    // 允许直接粘贴 data/名字 或 名字\
-    const name = raw
-      .replace(/^data[\\/]/i, "")
-      .replace(/[\\/]+$/, "")
-      .trim();
-
-    try {
-      const data = await fetchJSON("/api/worlds");
-      const items = Array.isArray(data.items) ? data.items : [];
-      const found = items.find((item) => item.name.toLowerCase() === name.toLowerCase());
-
-      if (!found) {
-        showLoadError(`没有这个世界：「${name}」`);
-        return;
-      }
-
-      clearLoadError();
-      activatePane("world");
-      selectedWorld = found.name;
-      renderWorlds(items);
-
-      const node = el.worldList.querySelector(`.world-card[data-name="${CSS.escape(found.name)}"]`);
-      if (node) {
-        selectWorld(found, node);
-        node.scrollIntoView({ block: "nearest" });
-      }
-      el.loadWorld.value = "";
-      debug("加载世界", found);
-    } catch (err) {
-      showLoadError("加载失败：" + err.message);
-    }
+  function closeLoadedWorld() {
+    if (el.canvasWorld) el.canvasWorld.hidden = true;
+    if (el.canvasHint) el.canvasHint.hidden = false;
   }
 
   function openWorldForm() {
@@ -605,11 +612,8 @@
   initSidebar();
   on(el.btnCreateWorld, "click", openWorldForm);
   on(el.btnCancelWorld, "click", closeWorldForm);
-  on(el.btnLoadWorld, "click", loadWorldByName);
-  on(el.loadWorld, "keydown", (event) => {
-    if (event.key === "Enter") loadWorldByName();
-  });
-  on(el.loadWorld, "input", clearLoadError);
+  on(el.btnLoadWorld, "click", loadSelectedWorld);
+  on(el.btnCloseWorld, "click", closeLoadedWorld);
   on(el.worldForm, "submit", (event) => {
     event.preventDefault();
     createWorld();

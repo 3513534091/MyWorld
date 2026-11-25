@@ -153,13 +153,12 @@
       </section>
       </div>
 
-      <!-- 固定在左栏底部的加载入口 -->
+      <!-- 固定在左栏底部：显示当前选中项，点了才加载 -->
       <div class="panel-footer">
         <p class="form-error" id="loadError" hidden></p>
         <div class="panel-footer-row">
-          <input class="input" id="loadWorld" type="text" placeholder="世界名字" autocomplete="off"
-                 spellcheck="false" aria-label="要加载的世界名字" />
-          <button class="btn" id="btnLoadWorld" type="button">加载</button>
+          <span class="footer-target is-empty" id="loadTarget">未选择世界</span>
+          <button class="btn" id="btnLoadWorld" type="button" disabled>加载</button>
         </div>
       </div>
     </aside>
@@ -168,10 +167,19 @@
 
     <section class="canvas-wrap">
       <div class="canvas-grid"></div>
-      <div class="canvas-hint">
+      <div class="canvas-hint" id="canvasHint">
         <strong>节点画布</strong>
         <span>下一步：在这块区域接入可拖拽、可连线的图编辑器</span>
       </div>
+
+      <div class="canvas-world" id="canvasWorld" hidden>
+        <span class="canvas-world-kicker">当前世界</span>
+        <h3 id="canvasWorldName">—</h3>
+        <code id="canvasWorldPath">—</code>
+        <p class="hint">世界已加载。画布还没做，节点编辑器接进来之后这里就是它的工作区。</p>
+        <button class="btn ghost small" id="btnCloseWorld" type="button">关闭世界</button>
+      </div>
+
       <div class="canvas-badge" id="uptime">运行 00:00:00</div>
     </section>
   </main>
