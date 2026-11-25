@@ -27,7 +27,10 @@ from .config import Settings
 from .events import EventBus
 
 WEB_DIR = Path(__file__).resolve().parent.parent / "web"
-DEFAULT_WORLD_THUMB = WEB_DIR / "img" / "world-default.svg"
+DEFAULT_WORLD_THUMBS = {
+    "dark": WEB_DIR / "img" / "world-default.svg",
+    "light": WEB_DIR / "img" / "world-default-light.svg",
+}
 logger = logging.getLogger("myworld")
 
 
@@ -165,7 +168,7 @@ def create_app(settings: Settings) -> FastAPI:
         return created
 
     @app.get("/api/worlds/{name}/thumbnail", summary="世界缩略图（没有则用默认图）")
-    async def api_world_thumbnail(name: str) -> FileResponse:
+    async def api_world_thumbnail(name: str, theme: str = "dark") -> FileResponse:
         root = worlds.resolve_root(runtime.settings.data_dir)
         try:
             thumb = worlds.find_thumbnail(root, name)
@@ -174,9 +177,11 @@ def create_app(settings: Settings) -> FastAPI:
 
         headers = {"Cache-Control": "no-cache"}
         if thumb is None:
-            if not DEFAULT_WORLD_THUMB.is_file():
+            # 默认图分深浅两版，跟着页面主题走
+            default = DEFAULT_WORLD_THUMBS.get(theme, DEFAULT_WORLD_THUMBS["dark"])
+            if not default.is_file():
                 raise HTTPException(status_code=500, detail="默认世界图片缺失")
-            return FileResponse(DEFAULT_WORLD_THUMB, media_type="image/svg+xml", headers=headers)
+            return FileResponse(default, media_type="image/svg+xml", headers=headers)
         return FileResponse(thumb, headers=headers)
 
     @app.websocket("/ws")

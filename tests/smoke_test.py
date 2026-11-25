@@ -138,16 +138,28 @@ async def run_checks(port: int, data_dir: str) -> list[tuple[str, bool, str]]:
             checks.append(("POST /api/worlds 创建世界", ok, f"{response.status} {created.get('path')}"))
 
         thumb_url = f"{base}/api/worlds/{quote('测试世界')}/thumbnail"
-        async with session.get(thumb_url) as response:
-            body = await response.read()
+        async with session.get(thumb_url + "?theme=dark") as response:
+            dark_body = await response.read()
             content_type = response.headers.get("Content-Type", "")
             checks.append(
                 (
-                    "无缩略图时回落到默认图片",
-                    response.status == 200 and content_type.startswith("image/svg+xml") and b"<svg" in body,
-                    f"{response.status} {content_type} {len(body)}B",
+                    "无缩略图时回落到默认图片（深色）",
+                    response.status == 200 and content_type.startswith("image/svg+xml") and b"#241d47" in dark_body,
+                    f"{response.status} {content_type} {len(dark_body)}B",
                 )
             )
+
+        async with session.get(thumb_url + "?theme=light") as response:
+            light_body = await response.read()
+            checks.append(
+                (
+                    "默认图片有浅色版",
+                    response.status == 200 and b"#fbfaff" in light_body,
+                    f"{response.status} {len(light_body)}B",
+                )
+            )
+
+        checks.append(("深浅默认图内容不同", dark_body != light_body, f"{len(dark_body)} vs {len(light_body)}B"))
 
         async with session.get(f"{base}/api/worlds/{quote('不存在的世界')}/thumbnail") as response:
             checks.append(("未知世界的缩略图返回 404", response.status == 404, str(response.status)))

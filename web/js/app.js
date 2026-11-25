@@ -29,6 +29,9 @@
     worldError: $("worldError"),
     worldList: $("worldList"),
     worldEmpty: $("worldEmpty"),
+    loadWorld: $("loadWorld"),
+    btnLoadWorld: $("btnLoadWorld"),
+    loadError: $("loadError"),
   };
 
   const state = {
@@ -67,6 +70,8 @@
     const tip = theme === "light" ? "切换到深色" : "切换到浅色";
     el.btnTheme.title = tip;
     el.btnTheme.setAttribute("aria-label", tip);
+    // 默认缩略图分深浅两版，切主题时重新取
+    refreshThumbnailThemes();
   }
 
   function initTheme() {
@@ -101,26 +106,23 @@
 
   // ---------------- 左侧功能区 ----------------
 
+  function activatePane(name) {
+    document.querySelectorAll(".rail-item").forEach((item) => {
+      const active = item.dataset.pane === name;
+      item.classList.toggle("is-active", active);
+      item.setAttribute("aria-pressed", String(active));
+    });
+    document.querySelectorAll(".pane").forEach((pane) => {
+      pane.hidden = pane.dataset.pane !== name;
+    });
+    // 世界列表可能被别处改过（比如删了目录），切过去时 reload 一次
+    if (name === "world") loadWorlds();
+  }
+
   function initRail() {
-    const items = Array.from(document.querySelectorAll(".rail-item"));
-    const panes = Array.from(document.querySelectorAll(".pane"));
-
-    function activate(name) {
-      items.forEach((item) => {
-        const active = item.dataset.pane === name;
-        item.classList.toggle("is-active", active);
-        item.setAttribute("aria-pressed", String(active));
-      });
-      panes.forEach((pane) => {
-        pane.hidden = pane.dataset.pane !== name;
-      });
-      // 世界列表可能被别处改过（比如删了目录），切过去时reload一次
-      if (name === "world") loadWorlds();
-    }
-
-    items.forEach((item) => {
+    document.querySelectorAll(".rail-item").forEach((item) => {
       if (item.disabled) return;
-      item.addEventListener("click", () => activate(item.dataset.pane));
+      on(item, "click", () => activatePane(item.dataset.pane));
     });
   }
 
@@ -163,8 +165,10 @@
       const thumb = document.createElement("div");
       thumb.className = "world-thumb";
       const img = document.createElement("img");
-      // 后端在没有真实缩略图时返回默认图（web/img/world-default.svg）
-      img.src = `/api/worlds/${encodeURIComponent(item.name)}/thumbnail`;
+      // 没有真实缩略图时，后端按 ?theme= 返回对应的默认图（深/浅两版）
+      const thumbBase = `/api/worlds/${encodeURIComponent(item.name)}/thumbnail`;
+      img.dataset.thumbBase = thumbBase;
+      img.src = `${thumbBase}?theme=${currentTheme()}`;
       img.alt = item.name;
       // 不用 loading="lazy"：动态插入的元素在部分浏览器里不会触发懒加载，
       // 表现就是缩略图一直空着。本地小图直接加载更快也更可靠。
@@ -197,6 +201,72 @@
       el2.classList.toggle("is-selected", el2 === node);
     });
     debug("选择世界", item);
+  }
+
+  /* 主题切换后，让默认缩略图跟着换版本 */
+  function refreshThumbnailThemes() {
+    const theme = currentTheme();
+    document.querySelectorAll(".world-card img").forEach((img) => {
+      const base = img.dataset.thumbBase;
+      if (base) img.src = `${base}?theme=${theme}`;
+    });
+  }
+
+  // ---------------- 底部加载栏 ----------------
+
+  function showLoadError(message) {
+    if (!el.loadError) return;
+    el.loadError.textContent = message;
+    el.loadError.hidden = false;
+  }
+
+  function clearLoadError() {
+    if (!el.loadError) return;
+    el.loadError.textContent = "";
+    el.loadError.hidden = true;
+  }
+
+  async function loadWorldByName() {
+    if (!el.loadWorld) return;
+
+    const raw = el.loadWorld.value.trim();
+    if (!raw) {
+      showLoadError("先填一个世界名字");
+      el.loadWorld.focus();
+      return;
+    }
+
+    // 允许直接粘贴 data/名字 或 名字\
+    const name = raw
+      .replace(/^data[\\/]/i, "")
+      .replace(/[\\/]+$/, "")
+      .trim();
+
+    try {
+      const data = await fetchJSON("/api/worlds");
+      const items = Array.isArray(data.items) ? data.items : [];
+      const found = items.find((item) => item.name.toLowerCase() === name.toLowerCase());
+
+      if (!found) {
+        showLoadError(`没有这个世界：「${name}」`);
+        return;
+      }
+
+      clearLoadError();
+      activatePane("world");
+      selectedWorld = found.name;
+      renderWorlds(items);
+
+      const node = el.worldList.querySelector(`.world-card[data-name="${CSS.escape(found.name)}"]`);
+      if (node) {
+        selectWorld(found, node);
+        node.scrollIntoView({ block: "nearest" });
+      }
+      el.loadWorld.value = "";
+      debug("加载世界", found);
+    } catch (err) {
+      showLoadError("加载失败：" + err.message);
+    }
   }
 
   function openWorldForm() {
@@ -535,6 +605,11 @@
   initSidebar();
   on(el.btnCreateWorld, "click", openWorldForm);
   on(el.btnCancelWorld, "click", closeWorldForm);
+  on(el.btnLoadWorld, "click", loadWorldByName);
+  on(el.loadWorld, "keydown", (event) => {
+    if (event.key === "Enter") loadWorldByName();
+  });
+  on(el.loadWorld, "input", clearLoadError);
   on(el.worldForm, "submit", (event) => {
     event.preventDefault();
     createWorld();

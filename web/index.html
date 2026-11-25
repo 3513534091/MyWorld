@@ -99,6 +99,7 @@
 
     <!-- 功能区对应的内容面板 -->
     <aside class="panel">
+      <div class="pane-scroll">
       <section class="pane" data-pane="info">
         <h2>非发行版信息</h2>
         <dl class="meta" id="meta"></dl>
@@ -150,6 +151,17 @@
           网页只负责界面。
         </p>
       </section>
+      </div>
+
+      <!-- 固定在左栏底部的加载入口 -->
+      <div class="panel-footer">
+        <p class="form-error" id="loadError" hidden></p>
+        <div class="panel-footer-row">
+          <input class="input" id="loadWorld" type="text" placeholder="世界名字" autocomplete="off"
+                 spellcheck="false" aria-label="要加载的世界名字" />
+          <button class="btn" id="btnLoadWorld" type="button">加载</button>
+        </div>
+      </div>
     </aside>
       </div>
     </div>
