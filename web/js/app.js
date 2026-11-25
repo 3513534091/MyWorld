@@ -19,7 +19,10 @@
     btnTick: $("btnTick"),
     btnTheme: $("btnTheme"),
     worldName: $("worldName"),
+    worldForm: $("worldForm"),
     btnCreateWorld: $("btnCreateWorld"),
+    btnSubmitWorld: $("btnSubmitWorld"),
+    btnCancelWorld: $("btnCancelWorld"),
     worldError: $("worldError"),
     worldList: $("worldList"),
     worldEmpty: $("worldEmpty"),
@@ -172,6 +175,21 @@
     debug("选择世界", item);
   }
 
+  function openWorldForm() {
+    el.btnCreateWorld.hidden = true;
+    el.worldForm.hidden = false;
+    clearWorldError();
+    el.worldName.value = "";
+    el.worldName.focus();
+  }
+
+  function closeWorldForm() {
+    el.worldForm.hidden = true;
+    el.btnCreateWorld.hidden = false;
+    el.worldName.value = "";
+    clearWorldError();
+  }
+
   async function createWorld() {
     const name = el.worldName.value.trim();
     if (!name) {
@@ -180,15 +198,14 @@
       return;
     }
 
-    el.btnCreateWorld.disabled = true;
+    el.btnSubmitWorld.disabled = true;
     try {
       const created = await fetchJSON("/api/worlds", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name }),
       });
-      el.worldName.value = "";
-      clearWorldError();
+      closeWorldForm();
       selectedWorld = created.name;
       await loadWorlds();
       const node = el.worldList.querySelector(`[data-name="${CSS.escape(created.name)}"]`);
@@ -196,7 +213,7 @@
     } catch (err) {
       showWorldError(err.message);
     } finally {
-      el.btnCreateWorld.disabled = false;
+      el.btnSubmitWorld.disabled = false;
     }
   }
 
@@ -435,9 +452,14 @@
 
   initTheme();
   initRail();
-  el.btnCreateWorld.addEventListener("click", createWorld);
+  el.btnCreateWorld.addEventListener("click", openWorldForm);
+  el.btnCancelWorld.addEventListener("click", closeWorldForm);
+  el.worldForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+    createWorld();
+  });
   el.worldName.addEventListener("keydown", (event) => {
-    if (event.key === "Enter") createWorld();
+    if (event.key === "Escape") closeWorldForm();
   });
   refreshStatus();
   loadConfig();

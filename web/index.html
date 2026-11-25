@@ -99,15 +99,28 @@
 
       <section class="pane" data-pane="world" hidden>
         <h2>世界</h2>
-        <div class="world-create">
+
+        <button class="world-create-card" id="btnCreateWorld" type="button">
+          <svg class="plus" viewBox="0 0 24 24" aria-hidden="true">
+            <circle cx="12" cy="12" r="8.6" fill="none" stroke="currentColor" stroke-width="1.6" />
+            <path d="M12 8.4v7.2M8.4 12h7.2" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" />
+          </svg>
+          <span>创建新世界</span>
+        </button>
+
+        <form class="world-form" id="worldForm" hidden>
           <input class="input" id="worldName" type="text" placeholder="给世界取个名字" maxlength="64"
                  autocomplete="off" spellcheck="false" aria-label="世界名字" />
-          <button class="btn" id="btnCreateWorld">创建新世界</button>
-        </div>
+          <div class="world-form-actions">
+            <button class="btn" type="submit" id="btnSubmitWorld">创建</button>
+            <button class="btn ghost" type="button" id="btnCancelWorld">取消</button>
+          </div>
+        </form>
+
         <p class="form-error" id="worldError" hidden></p>
         <ul class="world-list" id="worldList"></ul>
         <p class="hint" id="worldEmpty" hidden>
-          还没有世界。取个名字点「创建新世界」，它会在 <code>data/</code> 下变成一个目录。
+          还没有世界。点上面的卡片建一个，它会在 <code>data/</code> 下变成一个目录。
         </p>
         <p class="hint" id="worldSelected" hidden></p>
       </section>
