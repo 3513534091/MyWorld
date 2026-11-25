@@ -521,22 +521,23 @@ body {
 .workbar {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   flex: 0 0 auto;
-  height: 42px;
-  padding: 0 14px;
+  height: 56px;
+  padding: 0 18px;
   border-bottom: 1px solid var(--border);
   background: var(--bg-soft);
 }
 
 .worktab {
-  padding: 5px 12px;
+  padding: 8px 16px;
   border: 1px solid transparent;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   background: transparent;
   color: var(--text-faint);
   font-family: inherit;
-  font-size: var(--fs-small);
+  font-size: calc(var(--fs-base) + 1px);
+  font-weight: 500;
   cursor: pointer;
   transition: color 0.15s, background 0.15s, border-color 0.15s;
 }
