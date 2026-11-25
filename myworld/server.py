@@ -229,7 +229,8 @@ def create_app(settings: Settings) -> FastAPI:
         except worlds.WorldError as exc:
             raise HTTPException(status_code=exc.status, detail=str(exc)) from exc
 
-        headers = {"Cache-Control": "no-cache"}
+        # 立绘/封面会被就地替换，绝对不能让浏览器拿缓存（否则换完还显示旧图）
+        headers = {"Cache-Control": "no-store"}
         if found is None:
             default = DEFAULT_CHARACTER_PORTRAITS.get(theme, DEFAULT_CHARACTER_PORTRAITS["dark"])
             if not default.is_file():
@@ -365,7 +366,8 @@ def create_app(settings: Settings) -> FastAPI:
         except worlds.WorldError as exc:
             raise HTTPException(status_code=exc.status, detail=str(exc)) from exc
 
-        headers = {"Cache-Control": "no-cache"}
+        # 立绘/封面会被就地替换，绝对不能让浏览器拿缓存（否则换完还显示旧图）
+        headers = {"Cache-Control": "no-store"}
         if thumb is None:
             # 默认图分深浅两版，跟着页面主题走
             default = DEFAULT_WORLD_THUMBS.get(theme, DEFAULT_WORLD_THUMBS["dark"])

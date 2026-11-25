@@ -465,6 +465,7 @@
 
     currentDetailName = item.name;
     if (el.detailError) el.detailError.hidden = true;
+    clearPendingPortrait();
     if (el.detailPhoto) {
       el.detailPhoto.src = portraitUrl(loadedWorld.name, item.name);
       el.detailPhoto.alt = item.name;
@@ -492,6 +493,7 @@
 
   function closeCharacterPanel() {
     if (!el.characterPanel) return;
+    clearPendingPortrait(); // 没保存的立绘直接丢掉
     animateCharacterReflow(() => {
       el.canvasBody?.classList.remove("has-detail");
       el.characterPanel.classList.remove("is-open");
@@ -531,8 +533,22 @@
       );
 
       currentDetailName = updated.name;
-      if (el.detailPhoto) el.detailPhoto.src = portraitUrl(loadedWorld.name, updated.name);
+
+      // 立绘有改动才上传（取消或没换图都不会动它）
+      if (pendingPortrait) {
+        try {
+          await postPortrait(pendingPortrait, loadedWorld.name, updated.name);
+        } catch (err) {
+          toast("立绘上传失败：" + err.message, "error");
+        }
+        clearPendingPortrait();
+      }
+
+      if (el.detailPhoto) {
+        el.detailPhoto.src = `${portraitUrl(loadedWorld.name, updated.name)}&v=${Date.now()}`;
+      }
       await loadCharacters();
+      bumpCardPortrait(loadedWorld.name, updated.name);
       renderAttributeRows(updated);
       toast("角色属性已保存");
     } catch (err) {
@@ -1115,10 +1131,10 @@
           return;
         }
 
-        // 换立绘：裁完直接上传，不动创建弹窗里的封面状态
+        // 换立绘：先只做本地预览，点「保存」才真正上传（取消就丢弃）
         if (cropPurpose === "portrait") {
           el.cropDialog.close();
-          uploadCharacterPortrait(blob);
+          setPendingPortrait(blob);
           return;
         }
 
@@ -1139,39 +1155,45 @@
     );
   }
 
-  /* 面板里点立绘 → 选图 → 裁剪 → 直接上传替换 */
-  async function uploadCharacterPortrait(blob) {
-    if (!loadedWorld || !currentDetailName) return;
+  /* 面板里点立绘 → 选图 → 裁剪：先暂存，保存时才上传 */
+  let pendingPortrait = null;
+  let pendingPortraitPreview = null;
 
-    const worldName = loadedWorld.name;
-    const charName = currentDetailName;
-    try {
-      const response = await fetch(
-        `/api/worlds/${encodeURIComponent(worldName)}/characters/${encodeURIComponent(charName)}/portrait`,
-        {
-          method: "POST",
-          headers: { "Content-Type": blob.type || "image/jpeg" },
-          body: blob,
-        },
-      );
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  function setPendingPortrait(blob) {
+    clearPendingPortrait();
+    pendingPortrait = blob;
+    pendingPortraitPreview = URL.createObjectURL(blob);
+    if (el.detailPhoto) el.detailPhoto.src = pendingPortraitPreview;
+    if (el.detailError) el.detailError.hidden = true;
+    toast("新立绘已选好，点「保存」生效");
+  }
 
-      // 同一地址加时间戳，避免浏览器用旧图
-      const stamp = Date.now();
-      if (el.detailPhoto) {
-        el.detailPhoto.src = `${portraitUrl(worldName, charName)}&v=${stamp}`;
-      }
-      const card = [...(el.characterList?.querySelectorAll(".character-card") ?? [])].find(
-        (item) => item.dataset.name === charName,
-      );
-      const cardImage = card?.querySelector("img");
-      if (cardImage) {
-        cardImage.src = `/api/worlds/${encodeURIComponent(worldName)}/characters/${encodeURIComponent(charName)}/portrait?theme=${currentTheme()}&v=${stamp}`;
-      }
-      toast("立绘已更新");
-    } catch (err) {
-      toast("立绘上传失败：" + err.message, "error");
-    }
+  function clearPendingPortrait() {
+    if (pendingPortraitPreview) URL.revokeObjectURL(pendingPortraitPreview);
+    pendingPortraitPreview = null;
+    pendingPortrait = null;
+  }
+
+  async function postPortrait(blob, worldName, charName) {
+    const response = await fetch(
+      `/api/worlds/${encodeURIComponent(worldName)}/characters/${encodeURIComponent(charName)}/portrait`,
+      {
+        method: "POST",
+        headers: { "Content-Type": blob.type || "image/jpeg" },
+        body: blob,
+      },
+    );
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+  }
+
+  /* 列表卡片的立绘地址是带 theme 的，换图后要加版本号才会刷新 */
+  function bumpCardPortrait(worldName, charName) {
+    const card = [...(el.characterList?.querySelectorAll(".character-card") ?? [])].find(
+      (item) => item.dataset.name === charName,
+    );
+    const image = card?.querySelector("img");
+    if (!image) return;
+    image.src = `/api/worlds/${encodeURIComponent(worldName)}/characters/${encodeURIComponent(charName)}/portrait?theme=${currentTheme()}&v=${Date.now()}`;
   }
 
   function initCropDrag() {
