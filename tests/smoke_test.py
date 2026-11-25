@@ -378,6 +378,28 @@ async def run_checks(port: int, data_dir: str) -> list[tuple[str, bool, str]]:
             labels = [item["label"] for item in detail.get("attributes", [])]
             checks.append(("PATCH 保存角色属性", response.status == 200 and labels == ["年龄", "身份"], str(labels)))
 
+        async with session.patch(
+            detail_url,
+            json={
+                "attributes": [
+                    {"label": "重复", "value": "1"},
+                    {"label": "重复", "value": "2"},
+                    {"label": "年龄", "value": "3"},
+                ]
+            },
+        ) as response:
+            detail = await response.json()
+            labels = [item["label"] for item in detail.get("attributes", [])]
+            checks.append(
+                (
+                    "同名属性保存时去重",
+                    response.status == 200
+                    and labels == ["重复", "年龄"]
+                    and detail["attributes"][0]["value"] == "1",
+                    str(labels),
+                )
+            )
+
         async with session.patch(detail_url, json={"name": "改名角色"}) as response:
             detail = await response.json()
             checks.append(("PATCH 角色改名", response.status == 200 and detail.get("name") == "改名角色", str(detail.get("name"))))

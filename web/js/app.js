@@ -731,6 +731,14 @@
       return;
     }
 
+    // 属性名（键）在同一个角色里不能重复
+    const labels = attributes.map((attr) => attr.label).filter(Boolean);
+    const duplicates = [...new Set(labels.filter((label, index) => labels.indexOf(label) !== index))];
+    if (duplicates.length) {
+      showDetailError(`属性名不能重复：${duplicates.join("、")}`);
+      return;
+    }
+
     if (el.detailError) el.detailError.hidden = true;
 
     el.btnDetailSave.disabled = true;

@@ -190,8 +190,12 @@ def _read_meta(directory: Path) -> dict[str, Any]:
 
 
 def normalize_attributes(items: Any) -> list[dict[str, str]]:
-    """把属性整理成 [{"label": ..., "value": ...}]，丢掉空行、限制条数与长度。"""
+    """把属性整理成 [{"label": ..., "value": ...}]，丢掉空行、限制条数与长度。
+
+    属性名（label）在同一个角色里必须唯一：重复的只保留第一次出现的。
+    """
     result: list[dict[str, str]] = []
+    seen: set[str] = set()
     if not isinstance(items, list):
         return result
 
@@ -206,6 +210,12 @@ def normalize_attributes(items: Any) -> list[dict[str, str]]:
             continue
         if not label and not value:
             continue
+        if label:
+            if label in seen:
+                continue  # 属性名重复，只留第一份
+            seen.add(label)
+        else:
+            continue  # 没有名字的属性对角色没有意义
         result.append({"label": label[:40], "value": value[:500]})
         if len(result) >= ATTRIBUTES_MAX:
             break
@@ -218,10 +228,24 @@ def read_character(worlds_root: Path, world_name: str, raw_name: str) -> dict[st
     created = meta.get("created_at")
     if not created:
         created = datetime.fromtimestamp(directory.stat().st_mtime, tz=timezone.utc).isoformat(timespec="seconds")
+
+    # 旧数据里可能有重复属性名：这里顺手把文件也整理干净
+    raw_attributes = meta.get("attributes")
+    normalized = normalize_attributes(raw_attributes)
+    if isinstance(raw_attributes, list) and raw_attributes != normalized:
+        meta["attributes"] = normalized
+        try:
+            (directory / META_NAME).write_text(
+                json.dumps(meta, ensure_ascii=False, indent=2) + "\n",
+                encoding="utf-8",
+            )
+        except OSError:
+            pass
+
     return {
         "name": directory.name,
         "created_at": str(created),
-        "attributes": normalize_attributes(meta.get("attributes")),
+        "attributes": normalized,
         "path": f"data/{world_name}/{DIR_NAME}/{directory.name}",
     }
 

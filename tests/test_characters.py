@@ -116,6 +116,36 @@ class CharacterTests(unittest.TestCase):
         with self.assertRaises(worlds.WorldError):
             characters.save_order(self.worlds_root, "山与海", ["../x"])
 
+    def test_attributes_dedupe_labels(self) -> None:
+        characters.create_character(self.worlds_root, "山与海", "阿澈")
+        updated = characters.update_character(
+            self.worlds_root,
+            "山与海",
+            "阿澈",
+            attributes=[
+                {"label": "12", "value": "12"},
+                {"label": "12", "value": "12"},
+                {"label": "年龄", "value": "17"},
+                {"label": "年龄", "value": "18"},
+            ],
+        )
+        # 同名属性只保留第一份
+        self.assertEqual([item["label"] for item in updated["attributes"]], ["12", "年龄"])
+        self.assertEqual(updated["attributes"][1]["value"], "17")
+
+        again = characters.read_character(self.worlds_root, "山与海", "阿澈")
+        self.assertEqual(len(again["attributes"]), 2)
+
+    def test_attributes_drop_nameless_rows(self) -> None:
+        characters.create_character(self.worlds_root, "山与海", "阿澈")
+        updated = characters.update_character(
+            self.worlds_root,
+            "山与海",
+            "阿澈",
+            attributes=[{"label": "", "value": "只有值"}, {"label": "年龄", "value": "17"}],
+        )
+        self.assertEqual([item["label"] for item in updated["attributes"]], ["年龄"])
+
     def test_read_and_update_attributes(self) -> None:
         characters.create_character(self.worlds_root, "山与海", "阿澈")
         detail = characters.read_character(self.worlds_root, "山与海", "阿澈")
