@@ -334,14 +334,15 @@
     </div>
   </dialog>
 
-  <!-- 导入预设前的变更确认 -->
+  <!-- 导入预设前的变更清单（每项可勾选） -->
   <dialog class="dialog" id="presetImportDialog" aria-labelledby="presetImportTitle">
     <div class="dialog-form">
       <h3 class="dialog-title" id="presetImportTitle">导入预设</h3>
       <p class="hint" id="presetImportText"></p>
+      <div class="import-groups" id="presetImportList"></div>
       <div class="dialog-actions">
         <button class="btn ghost" type="button" id="btnImportCancel">取消</button>
-        <button class="btn danger" type="button" id="btnImportConfirm">导入</button>
+        <button class="btn danger" type="button" id="btnImportConfirm">导入所选</button>
       </div>
     </div>
   </dialog>

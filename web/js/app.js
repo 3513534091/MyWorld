@@ -80,6 +80,7 @@
     btnPresetPickerCancel: $("btnPresetPickerCancel"),
     presetImportDialog: $("presetImportDialog"),
     presetImportText: $("presetImportText"),
+    presetImportList: $("presetImportList"),
     btnImportCancel: $("btnImportCancel"),
     btnImportConfirm: $("btnImportConfirm"),
     detailError: $("detailError"),
@@ -546,7 +547,7 @@
     currentDetailName = null;
   }
 
-  /* 面板「导入预设」：按预设的属性名清单调整角色——缺的补上、多余的连值一起删掉 */
+  /* 面板「导入预设」：列出要补/要删的每一项，用户逐项勾选 */
   let pendingImport = null;
 
   function planPresetImport(item) {
@@ -564,40 +565,109 @@
       .filter((entry) => entry.label);
 
     const keySet = new Set(keys);
-    const toAdd = keys.filter((key) => !entries.some((entry) => entry.label === key));
-    const toRemove = entries.filter((entry) => !keySet.has(entry.label));
+    const adds = keys
+      .filter((key) => !entries.some((entry) => entry.label === key))
+      .map((key) => ({ label: key, checked: true }));
+    const removes = entries
+      .filter((entry) => !keySet.has(entry.label))
+      .map((entry) => ({ label: entry.label, row: entry.row, checked: true }));
+    const keeps = entries.filter((entry) => keySet.has(entry.label)).map((entry) => entry.label);
 
-    if (!toAdd.length && !toRemove.length) {
+    if (!adds.length && !removes.length) {
       toast(`「${item.name}」和当前属性已经一致`);
       return;
     }
 
-    pendingImport = { item, toAdd, toRemove };
-    const parts = [];
-    if (toAdd.length) {
-      parts.push(`补充 ${toAdd.length} 个：${toAdd.join("、")}`);
-    }
-    if (toRemove.length) {
-      parts.push(`删除 ${toRemove.length} 个（连值一起删）：${toRemove.map((entry) => entry.label).join("、")}`);
-    }
+    pendingImport = { item, adds, removes, keeps };
     if (el.presetImportText) {
       el.presetImportText.textContent =
-        `导入「${item.name}」会把属性调整成预设的清单——${parts.join("；")}。` +
-        "删除的值无法恢复（还可以点「取消」不保存），确定要导入吗？";
+        `导入「${item.name}」，下面每项都可以自己决定。导入后仍要点「保存」才会落盘。`;
     }
+    renderImportPlan();
     el.presetImportDialog?.showModal();
+  }
+
+  function makeImportGroup(title, items, { danger = false, plain = false } = {}) {
+    const group = document.createElement("div");
+    group.className = "import-group";
+
+    const heading = document.createElement("span");
+    heading.className = "import-group-title";
+    heading.textContent = `${title} · ${items.length} 项`;
+    group.append(heading);
+
+    for (const item of items) {
+      const row = document.createElement(plain ? "span" : "label");
+      row.className = `import-item${danger ? " is-danger" : ""}${plain ? " is-keep" : ""}`;
+
+      if (!plain) {
+        const box = document.createElement("input");
+        box.type = "checkbox";
+        box.checked = item.checked;
+        box.addEventListener("change", () => {
+          item.checked = box.checked;
+          updateImportButton();
+        });
+        row.append(box);
+      }
+
+      const text = document.createElement("span");
+      text.textContent = item.label;
+      row.append(text);
+      group.append(row);
+    }
+
+    return group;
+  }
+
+  function renderImportPlan() {
+    if (!el.presetImportList || !pendingImport) return;
+    const { adds, removes, keeps } = pendingImport;
+    el.presetImportList.replaceChildren();
+
+    if (adds.length) el.presetImportList.append(makeImportGroup("补充", adds));
+    if (removes.length) {
+      el.presetImportList.append(makeImportGroup("删除（连值一起删）", removes, { danger: true }));
+    }
+    if (keeps.length) {
+      el.presetImportList.append(
+        makeImportGroup(
+          "保留（值不动）",
+          keeps.map((label) => ({ label })),
+          { plain: true },
+        ),
+      );
+    }
+    updateImportButton();
+  }
+
+  function updateImportButton() {
+    if (!el.btnImportConfirm) return;
+    if (!pendingImport) {
+      el.btnImportConfirm.textContent = "导入所选";
+      el.btnImportConfirm.disabled = false;
+      return;
+    }
+    const count =
+      pendingImport.adds.filter((entry) => entry.checked).length +
+      pendingImport.removes.filter((entry) => entry.checked).length;
+    el.btnImportConfirm.textContent = count ? `导入所选（${count}）` : "导入所选";
+    el.btnImportConfirm.disabled = count === 0;
   }
 
   function confirmPresetImport() {
     if (!pendingImport) return;
-    const { item, toAdd, toRemove } = pendingImport;
+    const { item, adds, removes } = pendingImport;
 
-    for (const entry of toRemove) entry.row.remove();
-    for (const key of toAdd) el.attrList.append(makeAttrRow({ label: key, value: "" }));
+    const pickedAdds = adds.filter((entry) => entry.checked);
+    const pickedRemoves = removes.filter((entry) => entry.checked);
 
-    if (el.detailError) el.detailError.hidden = true;
+    for (const entry of pickedRemoves) entry.row.remove();
+    for (const entry of pickedAdds) el.attrList.append(makeAttrRow({ label: entry.label, value: "" }));
+
     pendingImport = null;
-    toast(`已导入「${item.name}」：补充 ${toAdd.length} 个、删除 ${toRemove.length} 个`);
+    if (el.detailError) el.detailError.hidden = true;
+    toast(`已导入「${item.name}」：补充 ${pickedAdds.length} 个、删除 ${pickedRemoves.length} 个`);
   }
 
   async function openPresetPicker() {

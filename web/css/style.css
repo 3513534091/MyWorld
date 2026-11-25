@@ -1565,6 +1565,59 @@ body {
   grid-template-columns: 1fr auto;
 }
 
+/* ---------- 导入预设：逐项勾选 ---------- */
+.import-groups {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-height: 46vh;
+  overflow-y: auto;
+}
+
+.import-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.import-group-title {
+  color: var(--text-faint);
+  font-size: var(--fs-small);
+  letter-spacing: 0.5px;
+}
+
+.import-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-sm);
+  background: var(--chip-bg);
+  font-size: var(--fs-small);
+  cursor: pointer;
+}
+
+.import-item input[type="checkbox"] {
+  width: 15px;
+  height: 15px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.import-item.is-danger {
+  color: var(--error);
+}
+
+.import-item.is-danger input[type="checkbox"] {
+  accent-color: var(--error);
+}
+
+.import-item.is-keep {
+  color: var(--text-dim);
+  cursor: default;
+}
+
 /* ---------- 滚动条 ---------- */
 ::-webkit-scrollbar {
   width: 10px;
