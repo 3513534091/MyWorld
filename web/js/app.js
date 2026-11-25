@@ -18,6 +18,12 @@
     btnPing: $("btnPing"),
     btnTick: $("btnTick"),
     btnTheme: $("btnTheme"),
+    worldName: $("worldName"),
+    btnCreateWorld: $("btnCreateWorld"),
+    worldError: $("worldError"),
+    worldList: $("worldList"),
+    worldEmpty: $("worldEmpty"),
+    worldSelected: $("worldSelected"),
   };
 
   const state = {
@@ -97,12 +103,101 @@
       panes.forEach((pane) => {
         pane.hidden = pane.dataset.pane !== name;
       });
+      // 世界列表可能被别处改过（比如删了目录），切过去时reload一次
+      if (name === "world") loadWorlds();
     }
 
     items.forEach((item) => {
       if (item.disabled) return;
       item.addEventListener("click", () => activate(item.dataset.pane));
     });
+  }
+
+  // ---------------- 世界 ----------------
+
+  let selectedWorld = null;
+
+  function showWorldError(message) {
+    el.worldError.textContent = message;
+    el.worldError.hidden = false;
+  }
+
+  function clearWorldError() {
+    el.worldError.textContent = "";
+    el.worldError.hidden = true;
+  }
+
+  async function loadWorlds() {
+    try {
+      const data = await fetchJSON("/api/worlds");
+      clearWorldError();
+      renderWorlds(Array.isArray(data.items) ? data.items : []);
+    } catch (err) {
+      showWorldError("读取世界列表失败：" + err.message);
+    }
+  }
+
+  function renderWorlds(items) {
+    el.worldList.replaceChildren();
+    el.worldEmpty.hidden = items.length > 0;
+
+    for (const item of items) {
+      const li = document.createElement("li");
+      li.className = "world-item";
+      li.dataset.name = item.name;
+      if (item.name === selectedWorld) li.classList.add("is-selected");
+
+      const name = document.createElement("span");
+      name.className = "world-name";
+      name.textContent = item.name;
+
+      const time = document.createElement("span");
+      time.className = "world-time";
+      time.textContent = formatStartTime(item.created_at).replace(/:\d{2}$/, "");
+      time.title = item.created_at ?? "";
+
+      li.append(name, time);
+      li.addEventListener("click", () => selectWorld(item, li));
+      el.worldList.append(li);
+    }
+  }
+
+  function selectWorld(item, node) {
+    selectedWorld = item.name;
+    el.worldList.querySelectorAll(".world-item").forEach((el2) => {
+      el2.classList.toggle("is-selected", el2 === node);
+    });
+    el.worldSelected.hidden = false;
+    el.worldSelected.textContent = "已选择：" + item.path;
+    debug("选择世界", item);
+  }
+
+  async function createWorld() {
+    const name = el.worldName.value.trim();
+    if (!name) {
+      showWorldError("先给世界取个名字");
+      el.worldName.focus();
+      return;
+    }
+
+    el.btnCreateWorld.disabled = true;
+    try {
+      const created = await fetchJSON("/api/worlds", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name }),
+      });
+      el.worldName.value = "";
+      clearWorldError();
+      selectedWorld = created.name;
+      await loadWorlds();
+      const node = el.worldList.querySelector(`[data-name="${CSS.escape(created.name)}"]`);
+      if (node) selectWorld(created, node);
+    } catch (err) {
+      showWorldError(err.message);
+    } finally {
+      el.btnCreateWorld.disabled = false;
+    }
   }
 
   // ---------------- 连接状态 ----------------
@@ -236,7 +331,19 @@
 
   async function fetchJSON(path, options = {}) {
     const res = await fetch(path, { cache: "no-store", ...options });
-    if (!res.ok) throw new Error(`${path} → HTTP ${res.status}`);
+    if (!res.ok) {
+      // 后端的 HTTPException 会把可读原因放在 detail 里，直接透给用户
+      let detail = `${path} → HTTP ${res.status}`;
+      try {
+        const body = await res.json();
+        if (body && body.detail) {
+          detail = typeof body.detail === "string" ? body.detail : JSON.stringify(body.detail);
+        }
+      } catch {
+        /* 响应不是 JSON，保持默认信息 */
+      }
+      throw new Error(detail);
+    }
     return res.json();
   }
 
@@ -328,8 +435,13 @@
 
   initTheme();
   initRail();
+  el.btnCreateWorld.addEventListener("click", createWorld);
+  el.worldName.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") createWorld();
+  });
   refreshStatus();
   loadConfig();
+  loadWorlds();
   connect();
   setInterval(tickUptime, 1000);
   setInterval(refreshStatus, 15000);

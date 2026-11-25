@@ -16,6 +16,10 @@ runtime.json
 .DS_Store
 Thumbs.db
 
+# 世界数据是用户内容，只保留目录占位
+data/*
+!data/.gitkeep
+
 # 本地私有内容（凭据备忘、临时脚本），不入库
 .local/
 

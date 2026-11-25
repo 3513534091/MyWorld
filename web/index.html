@@ -99,6 +99,17 @@
 
       <section class="pane" data-pane="world" hidden>
         <h2>世界</h2>
+        <div class="world-create">
+          <input class="input" id="worldName" type="text" placeholder="给世界取个名字" maxlength="64"
+                 autocomplete="off" spellcheck="false" aria-label="世界名字" />
+          <button class="btn" id="btnCreateWorld">创建新世界</button>
+        </div>
+        <p class="form-error" id="worldError" hidden></p>
+        <ul class="world-list" id="worldList"></ul>
+        <p class="hint" id="worldEmpty" hidden>
+          还没有世界。取个名字点「创建新世界」，它会在 <code>data/</code> 下变成一个目录。
+        </p>
+        <p class="hint" id="worldSelected" hidden></p>
       </section>
 
       <section class="pane" data-pane="about" hidden>

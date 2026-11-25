@@ -28,6 +28,7 @@ ENV_MAP = {
     "MYWORLD_PORT": "port",
     "MYWORLD_OPEN_BROWSER": "open_browser",
     "MYWORLD_LOG_LEVEL": "log_level",
+    "MYWORLD_DATA_DIR": "data_dir",
 }
 LOG_LEVELS = ("critical", "error", "warning", "info", "debug", "trace")
 
@@ -53,6 +54,9 @@ class Settings:
     port: int = DEFAULT_PORT
     open_browser: bool = False
     log_level: str = "info"
+
+    # 世界目录的存放位置；None 表示用项目根下的 data/
+    data_dir: str | None = None
 
     # 端口顺延相关信息，便于前端/日志如实展示
     requested_port: int = DEFAULT_PORT
@@ -147,7 +151,7 @@ def resolve(
     path = _find_config_file(config_file, cwd)
     if path is not None:
         for key, value in _read_config_file(path).items():
-            if key in {"host", "port", "open_browser", "log_level"}:
+            if key in {"host", "port", "open_browser", "log_level", "data_dir"}:
                 values[key] = value
                 sources[key] = f"file:{path.name}"
 
@@ -159,7 +163,7 @@ def resolve(
             sources[key] = f"env:{env_key}"
 
     # 1. 命令行
-    for key in ("host", "port", "open_browser", "log_level"):
+    for key in ("host", "port", "open_browser", "log_level", "data_dir"):
         if key in cli:
             values[key] = cli[key]
             sources[key] = "cli"
@@ -182,6 +186,14 @@ def resolve(
     if "open_browser" not in sources:
         sources["open_browser"] = "default"
 
+    data_dir_raw = values.get("data_dir")
+    data_dir: str | None = str(data_dir_raw).strip() if data_dir_raw is not None else ""
+    if data_dir:
+        data_dir = str(Path(data_dir).expanduser())
+    else:
+        data_dir = None
+        sources.setdefault("data_dir", "default")
+
     # 端口可用性检查与顺延
     port = requested_port
     shifted = False
@@ -199,6 +211,7 @@ def resolve(
         port=port,
         open_browser=open_browser,
         log_level=log_level,
+        data_dir=data_dir,
         requested_port=requested_port,
         port_shifted=shifted,
         sources=sources,

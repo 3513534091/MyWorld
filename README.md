@@ -2,7 +2,7 @@
 
 本地跑一个服务，浏览器打开就是一个工作台 —— 类似 ComfyUI 的那种形态：**前端只负责界面与交互，后端负责内容与任务**，两者通过 REST + WebSocket 通信。
 
-当前是 **v0.1.0 骨架版**：端口管理、静态前端、REST 状态接口、WebSocket 心跳/重连/服务端广播链路都已打通，明暗两套主题可切换，节点画布留在下一步。
+当前是 **v0.1.0 骨架版**：端口管理、静态前端、REST 状态接口、WebSocket 心跳/重连/服务端广播链路都已打通，明暗两套主题可切换，已支持**创建世界**（每个世界是 `data/` 下的一个目录），节点画布留在下一步。
 
 深色：
 
@@ -66,7 +66,7 @@ gcc -O2 -municode -static -static-libgcc -o MyWorld.exe tools\launcher.c
 | 环境变量 | `$env:MYWORLD_PORT = 9000` | 适合脚本/IDE 里固定 |
 | 配置文件 | 复制 `myworld.config.example.json` 为 `myworld.config.json` | 适合长期项目配置 |
 
-字段：`host`（默认 `127.0.0.1`，只允许本机访问）、`port`（默认 `8000`）、`open_browser`、`log_level`。
+字段：`host`（默认 `127.0.0.1`，只允许本机访问）、`port`（默认 `8000`）、`open_browser`、`log_level`、`data_dir`（世界目录，默认 `./data`）。
 
 端口行为：
 
@@ -82,6 +82,32 @@ gcc -O2 -municode -static -static-libgcc -o MyWorld.exe tools\launcher.c
 - 两套配色全部收敛在 [`web/css/style.css`](web/css/style.css) 的 CSS 变量里：`:root` 是深色，`:root[data-theme="light"]` 覆盖成浅色。加新组件时用变量，就不会在浅色下出现白底白字。
 - 字号也是变量：`--fs-base`（15px）、`--fs-small`、`--fs-tiny`、`--fs-heading`，外加 `--topbar-h`、`--panel-w`；想整体放大只改「排版刻度」那一段，不用逐个组件去调。
 
+## 世界与 data/ 目录
+
+每个「世界」就是 `data/` 下的一个目录，目录名即世界名：
+
+```
+data/
+  示例世界/
+    world.json      # {"name": "...", "created_at": "...", "format": 1}
+  第二个世界/
+    world.json
+```
+
+在左侧功能区点「世界」，输入名字后按「创建新世界」即可；也可以直接调 API。创建后会立刻出现在列表里，点一下选中。
+
+![世界面板](docs/screenshot-world.png)
+
+世界名的限制（目录名，所以卡得比较严）：最长 64 字符；不能含 `\ / : * ? " < > |`；不能以点开头；不能以空格或点结尾；不能用 Windows 保留名（`CON`、`COM1`、`LPT9` 之类）。前缀会去掉两端空格，重名返回 409。
+
+数据目录默认是项目根下的 `data/`，可以改：
+
+```powershell
+.\MyWorld.exe --data-dir D:\worlds     # 或环境变量 MYWORLD_DATA_DIR
+```
+
+`data/` 里的内容不进版本库（只保留 `.gitkeep` 占位）。
+
 ## 接口
 
 | 方法 | 路径 | 说明 |
@@ -89,6 +115,8 @@ gcc -O2 -municode -static -static-libgcc -o MyWorld.exe tools\launcher.c
 | GET | `/api/status` | 版本、端口、运行时长、PID、请求数、WS 连接数 |
 | GET | `/api/config` | 生效配置 + **每个字段的来源**（cli / env / file / default） |
 | GET | `/api/events` | 事件总线订阅者数量 |
+| GET | `/api/worlds` | 列出 `data/` 下所有世界 |
+| POST | `/api/worlds` | 创建世界，体 `{"name": "名字"}`；重名 409、非法名 400 |
 | POST | `/api/demo/tick` | 向所有已连接页面广播一条事件（验证推送链路） |
 | GET | `/api/docs` | 自动生成的 Swagger 文档 |
 | WS | `/ws` | 心跳与事件推送通道 |
@@ -123,21 +151,26 @@ myworld/
   config.py            配置解析：优先级合并、端口校验与自动顺延
   events.py            进程内事件总线（发布 → 多个 WS 订阅者）
   server.py            FastAPI 应用：REST + WebSocket + 静态托管
+  worlds.py            世界管理：名字校验、创建、列表（data/ 目录）
 web/
   index.html           界面结构：顶栏 / 左侧功能区 / 内容面板 / 画布
   css/style.css        明暗两套主题 + 排版刻度（全部是 CSS 变量）
-  js/app.js            状态渲染、WS 连接/心跳/重连（日志在控制台，页面不放日志）
+  js/app.js            状态渲染、WS 连接/心跳/重连、世界列表与创建
+data/
+  .gitkeep             世界目录（内容不入库）
 tests/
   test_config.py       配置解析单元测试（纯标准库）
-  smoke_test.py        端到端冒烟测试（真实进程 + REST + WS）
+  test_worlds.py       世界名字校验与增删单元测试
+  smoke_test.py        端到端冒烟测试（真实进程 + REST + WS + 世界 API）
 myworld.config.example.json
 ```
 
 ## 测试
 
 ```powershell
-python tests/test_config.py     # 配置与端口逻辑：9 项
-python tests/smoke_test.py      # 起真实服务，跑 HTTP + WebSocket 全链路：10 项
+python tests/test_config.py     # 配置与端口逻辑：11 项
+python tests/test_worlds.py     # 世界名字校验与创建列表：11 项
+python tests/smoke_test.py      # 起真实服务，跑 HTTP + WebSocket + 世界 API：18 项
 ```
 
 ## 下一步

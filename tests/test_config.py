@@ -116,6 +116,14 @@ class ResolveTests(unittest.TestCase):
         finally:
             sock.close()
 
+    def test_data_dir_defaults_to_none(self) -> None:
+        self.assertIsNone(resolve(cwd=self.cwd, env={}).data_dir)
+
+    def test_data_dir_from_env(self) -> None:
+        target = self.cwd / "worlds"
+        settings = resolve(cwd=self.cwd, env={"MYWORLD_DATA_DIR": str(target)})
+        self.assertEqual(settings.data_dir, str(target))
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

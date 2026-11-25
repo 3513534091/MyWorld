@@ -17,16 +17,23 @@ import time
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
+from pydantic import BaseModel
 
-from . import __version__
+from . import __version__, worlds
 from .config import Settings
 from .events import EventBus
 
 WEB_DIR = Path(__file__).resolve().parent.parent / "web"
 logger = logging.getLogger("myworld")
+
+
+class WorldCreateRequest(BaseModel):
+    """POST /api/worlds 的请求体。"""
+
+    name: str = ""
 
 
 def display_host(host: str) -> str:
@@ -127,6 +134,21 @@ def create_app(settings: Settings) -> FastAPI:
         delivered = runtime.bus.publish({"kind": "tick", "source": "http"})
         logger.info("模拟推送 tick → 送达 %d 个连接", delivered)
         return {"ok": True, "delivered": delivered, "subscribers": runtime.bus.subscribers}
+
+    @app.get("/api/worlds", summary="列出所有世界")
+    async def api_worlds() -> dict[str, Any]:
+        root = worlds.resolve_root(runtime.settings.data_dir)
+        return {"root": str(root), "items": worlds.list_worlds(root)}
+
+    @app.post("/api/worlds", summary="创建新世界", status_code=201)
+    async def api_create_world(payload: WorldCreateRequest) -> dict[str, Any]:
+        root = worlds.resolve_root(runtime.settings.data_dir)
+        try:
+            created = worlds.create_world(root, payload.name)
+        except worlds.WorldError as exc:
+            raise HTTPException(status_code=exc.status, detail=str(exc)) from exc
+        logger.info("创建世界「%s」→ %s", created["name"], created["path"])
+        return created
 
     @app.websocket("/ws")
     async def ws_endpoint(websocket: WebSocket) -> None:

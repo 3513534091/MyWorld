@@ -70,6 +70,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--open", dest="open_browser", action="store_true", help="启动后自动打开浏览器")
     parser.add_argument("--no-open", dest="open_browser", action="store_false", help="不自动打开浏览器")
     parser.add_argument("--log-level", choices=LOG_LEVELS, help="日志级别")
+    parser.add_argument("--data-dir", metavar="PATH", help="世界目录存放位置（默认 ./data）")
     parser.add_argument("--config", metavar="PATH", help="指定配置文件（默认读取 ./myworld.config.json）")
     parser.add_argument("--version", action="version", version=f"MyWorld {__version__}")
     parser.set_defaults(open_browser=None)
@@ -88,6 +89,7 @@ def main(argv: list[str] | None = None) -> int:
                 "port": args.port,
                 "open_browser": args.open_browser,
                 "log_level": args.log_level,
+                "data_dir": args.data_dir,
                 "strict_port": args.strict_port,
             },
             config_file=args.config,
