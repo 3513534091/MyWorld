@@ -118,6 +118,8 @@ data/
 
 ![右键菜单](docs/screenshot-menu.png)
 
+画布区上方还有一条**二级顶栏**（属于画布自己的分栏标签），目前只有「角色」一个标签；具体分栏内容还没做，后续同类分栏会加在这条栏里。
+
 还没有真实图片时，缩略图回落到默认图，**深浅两套**各一张（`web/img/world-default.svg` / `world-default-light.svg`），切换主题时会自动换。想换图就往世界目录里放一张 `thumbnail.png`（也认 `.jpg / .jpeg / .webp / .gif`），刷新即可，不需要重启服务。
 
 图片比例由 `--world-ratio` 变量控制，想用 4:3 就把它改成 `4 / 3`。
@@ -201,7 +203,7 @@ myworld/
   worlds.py            世界管理：名字校验、创建、列表（data/ 目录）
   presets.py           预设管理：同样的名字规则，存 presets/ 目录
 web/
-  index.html           界面结构：顶栏 / 左侧功能区 / 内容面板 / 画布
+  index.html           界面结构：顶栏 / 左侧功能区 / 内容面板 / 二级顶栏 / 画布
   css/style.css        明暗两套主题 + 排版刻度（全部是 CSS 变量）
   js/app.js            状态渲染、WS 连接/心跳/重连、世界图库与创建
   img/world-default.svg 世界缩略图默认图（深色）

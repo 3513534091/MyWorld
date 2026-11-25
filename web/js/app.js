@@ -715,6 +715,24 @@
     });
   }
 
+  // ---------------- 画布分栏（二级顶栏） ----------------
+
+  function initWorkTabs() {
+    const tabs = Array.from(document.querySelectorAll(".worktab"));
+    if (!tabs.length) return;
+
+    tabs.forEach((tab) => {
+      on(tab, "click", () => {
+        tabs.forEach((other) => {
+          const active = other === tab;
+          other.classList.toggle("is-active", active);
+          other.setAttribute("aria-selected", String(active));
+        });
+        debug("切换画布分栏", tab.dataset.tab);
+      });
+    });
+  }
+
   // ---------------- 连接状态 ----------------
 
   function setConnection(status, label) {
@@ -960,6 +978,7 @@
   initTheme();
   initRail();
   initSidebar();
+  initWorkTabs();
   on(el.btnCreateWorld, "click", () => openCreateDialog("world"));
   on(el.btnCreatePreset, "click", () => openCreateDialog("preset"));
   on(el.btnLoadWorld, "click", loadSelectedWorld);

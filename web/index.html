@@ -185,21 +185,28 @@
     </div>
 
     <section class="canvas-wrap">
-      <div class="canvas-grid"></div>
-      <div class="canvas-hint" id="canvasHint">
-        <strong>节点画布</strong>
-        <span>下一步：在这块区域接入可拖拽、可连线的图编辑器</span>
+      <!-- 二级顶栏：画布区自己的分栏标签 -->
+      <div class="workbar" role="tablist" aria-label="画布分栏">
+        <button class="worktab is-active" type="button" role="tab" aria-selected="true" data-tab="characters">角色</button>
       </div>
 
-      <div class="canvas-world" id="canvasWorld" hidden>
-        <span class="canvas-world-kicker">当前世界</span>
-        <h3 id="canvasWorldName">—</h3>
-        <code id="canvasWorldPath">—</code>
-        <p class="hint">世界已加载。画布还没做，节点编辑器接进来之后这里就是它的工作区。</p>
-        <button class="btn ghost small" id="btnCloseWorld" type="button">关闭世界</button>
-      </div>
+      <div class="canvas-body" id="canvasBody">
+        <div class="canvas-grid"></div>
+        <div class="canvas-hint" id="canvasHint">
+          <strong>节点画布</strong>
+          <span>下一步：在这块区域接入可拖拽、可连线的图编辑器</span>
+        </div>
 
-      <div class="canvas-badge" id="uptime">运行 00:00:00</div>
+        <div class="canvas-world" id="canvasWorld" hidden>
+          <span class="canvas-world-kicker">当前世界</span>
+          <h3 id="canvasWorldName">—</h3>
+          <code id="canvasWorldPath">—</code>
+          <p class="hint">世界已加载。画布还没做，节点编辑器接进来之后这里就是它的工作区。</p>
+          <button class="btn ghost small" id="btnCloseWorld" type="button">关闭世界</button>
+        </div>
+
+        <div class="canvas-badge" id="uptime">运行 00:00:00</div>
+      </div>
     </section>
   </main>
 

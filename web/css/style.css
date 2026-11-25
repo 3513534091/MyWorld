@@ -508,11 +508,55 @@ body {
 /* ---------- 画布占位 ---------- */
 .canvas-wrap {
   position: relative;
+  display: flex;
+  flex-direction: column;
   flex: 1 1 auto;
   min-width: 0;
   overflow: hidden;
   background: var(--bg);
   transition: background-color 0.18s ease;
+}
+
+/* 二级顶栏：画布区分栏标签 */
+.workbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 0 0 auto;
+  height: 42px;
+  padding: 0 14px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-soft);
+}
+
+.worktab {
+  padding: 5px 12px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-faint);
+  font-family: inherit;
+  font-size: var(--fs-small);
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s, border-color 0.15s;
+}
+
+.worktab:hover {
+  color: var(--text);
+  background: var(--ghost-hover-bg);
+}
+
+.worktab.is-active {
+  border-color: var(--border);
+  background: var(--panel);
+  color: var(--text);
+}
+
+.canvas-body {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .canvas-grid {
