@@ -287,9 +287,9 @@
       </div>
 
       <div class="preset-field" id="presetField" hidden>
-        <span class="detail-label">预设内容（给角色用的属性）</span>
+        <span class="detail-label">预设内容（属性名，只有键）</span>
         <div class="attr-list" id="presetAttrList"></div>
-        <button class="btn ghost small" id="btnPresetAddAttr" type="button">＋ 添加属性</button>
+        <button class="btn ghost small" id="btnPresetAddAttr" type="button">＋ 添加属性名</button>
       </div>
 
       <div class="dialog-fields">
@@ -317,19 +317,6 @@
       <p class="hint" id="presetPickerEmpty" hidden>还没有预设，先到左侧「预设」里建一个。</p>
       <div class="dialog-actions">
         <button class="btn ghost" type="button" id="btnPresetPickerCancel">取消</button>
-      </div>
-    </div>
-  </dialog>
-
-  <!-- 套用预设时，已有值冲突的确认 -->
-  <dialog class="dialog" id="presetMergeDialog" aria-labelledby="presetMergeTitle">
-    <div class="dialog-form">
-      <h3 class="dialog-title" id="presetMergeTitle">已有值冲突</h3>
-      <p class="hint" id="presetMergeText"></p>
-      <div class="dialog-actions">
-        <button class="btn ghost" type="button" id="btnMergeCancel">取消</button>
-        <button class="btn ghost" type="button" id="btnMergeKeep">保留已有值</button>
-        <button class="btn" type="button" id="btnMergeOverwrite">用预设覆盖</button>
       </div>
     </div>
   </dialog>

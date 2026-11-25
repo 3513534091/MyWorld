@@ -3,9 +3,10 @@
 一个预设 = `presets/` 下的一个目录（与世界目录同级，默认在项目根下）：
 
     presets/
-      快速出图/
-        preset.json     # 名字、创建时间、格式版本、给角色用的属性键值对
+      角色模板/
+        preset.json     # 名字、创建时间、格式版本，以及一组「属性名」（只有键，没有值）
 
+预设只描述**有哪些属性**，具体值永远存在角色自己身上，所以套用预设不会改动任何已有值。
 名字规则复用 worlds.validate_name（目录名的限制是一样的）。
 """
 
@@ -17,11 +18,11 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-from .characters import normalize_attributes
 from .worlds import WorldError, validate_name
 
-FORMAT_VERSION = 1
+FORMAT_VERSION = 2
 META_NAME = "preset.json"
+KEYS_MAX = 50
 
 
 def resolve_root(worlds_root: Path) -> Path:
@@ -36,6 +37,34 @@ def _preset_path(root: Path, name: str) -> Path:
     if path.parent.resolve() != root:
         raise WorldError("非法路径")
     return path
+
+
+def normalize_keys(items: Any) -> list[str]:
+    """预设只存属性名：去空、去重、截断长度、上限若干条。"""
+    keys: list[str] = []
+    if not isinstance(items, list):
+        return keys
+
+    for item in items:
+        if isinstance(item, dict):
+            key = str(item.get("key") or item.get("label") or "").strip()
+        else:
+            key = str(item).strip()
+        if not key or key in keys:
+            continue
+        keys.append(key[:40])
+        if len(keys) >= KEYS_MAX:
+            break
+    return keys
+
+
+def _preset_keys(meta: dict[str, Any]) -> list[str]:
+    """读预设的键；兼容旧版存 attributes（带值）的格式。"""
+    keys = normalize_keys(meta.get("keys"))
+    if keys:
+        return keys
+    # 旧格式：[{"label": "年龄", "value": "17"}] → 只取 label
+    return normalize_keys(meta.get("attributes"))
 
 
 def _read_meta(directory: Path) -> dict[str, Any]:
@@ -64,13 +93,13 @@ def list_presets(root: Path) -> list[dict[str, Any]]:
                 "name": entry.name,
                 "created_at": str(created),
                 "path": f"presets/{entry.name}",
-                "attributes": normalize_attributes(meta.get("attributes")),
+                "keys": _preset_keys(meta),
             }
         )
     return items
 
 
-def create_preset(root: Path, raw_name: str, attributes: Any = None) -> dict[str, Any]:
+def create_preset(root: Path, raw_name: str, keys: Any = None) -> dict[str, Any]:
     name = validate_name(raw_name)
     path = _preset_path(root, name)
     if path.exists():
@@ -82,12 +111,12 @@ def create_preset(root: Path, raw_name: str, attributes: Any = None) -> dict[str
         raise WorldError(f"创建目录失败：{exc.strerror or exc}") from exc
 
     created = datetime.now(timezone.utc).isoformat(timespec="seconds")
-    normalized = normalize_attributes(attributes)
+    normalized = normalize_keys(keys)
     meta = {
         "name": name,
         "created_at": created,
         "format": FORMAT_VERSION,
-        "attributes": normalized,
+        "keys": normalized,
     }
     (path / META_NAME).write_text(
         json.dumps(meta, ensure_ascii=False, indent=2) + "\n",
@@ -97,7 +126,7 @@ def create_preset(root: Path, raw_name: str, attributes: Any = None) -> dict[str
         "name": name,
         "created_at": created,
         "path": f"presets/{name}",
-        "attributes": normalized,
+        "keys": normalized,
     }
 
 
@@ -120,9 +149,9 @@ def update_preset(
     raw_name: str,
     *,
     new_name: str | None = None,
-    attributes: Any = None,
+    keys: Any = None,
 ) -> dict[str, Any]:
-    """改预设：重命名目录 + 覆盖属性键值对。"""
+    """改预设：重命名目录 + 覆盖属性名列表。"""
     name = validate_name(raw_name)
     directory = _preset_path(root, name)
     if not directory.is_dir():
@@ -145,9 +174,11 @@ def update_preset(
     meta["name"] = target_name
     meta["format"] = FORMAT_VERSION
     meta.setdefault("created_at", datetime.now(timezone.utc).isoformat(timespec="seconds"))
-    if attributes is not None:
-        meta["attributes"] = normalize_attributes(attributes)
-    meta.setdefault("attributes", [])
+    if keys is not None:
+        meta["keys"] = normalize_keys(keys)
+    else:
+        meta["keys"] = _preset_keys(meta)
+    meta.pop("attributes", None)  # 旧格式字段不再保留
 
     (directory / META_NAME).write_text(
         json.dumps(meta, ensure_ascii=False, indent=2) + "\n",
@@ -157,5 +188,5 @@ def update_preset(
         "name": target_name,
         "created_at": meta["created_at"],
         "path": f"presets/{target_name}",
-        "attributes": meta["attributes"],
+        "keys": meta["keys"],
     }

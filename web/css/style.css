@@ -1561,8 +1561,8 @@ body {
   gap: 8px;
 }
 
-.preset-field .attr-row {
-  grid-template-columns: 1fr 1.3fr auto;
+.preset-field .key-row {
+  grid-template-columns: 1fr auto;
 }
 
 /* ---------- 滚动条 ---------- */

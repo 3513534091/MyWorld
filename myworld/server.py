@@ -66,10 +66,10 @@ class CharacterUpdateRequest(BaseModel):
 
 
 class PresetRequest(BaseModel):
-    """POST /api/presets：名字 + 给角色用的属性键值对。"""
+    """POST / PATCH /api/presets：名字 + 属性名列表（只有键，没有值）。"""
 
     name: str = ""
-    attributes: list[Any] | None = None
+    keys: list[Any] | None = None
 
 
 def display_host(host: str) -> str:
@@ -340,14 +340,14 @@ def create_app(settings: Settings) -> FastAPI:
     async def api_create_preset(payload: PresetRequest) -> dict[str, Any]:
         root = presets.resolve_root(worlds.resolve_root(runtime.settings.data_dir))
         try:
-            created = presets.create_preset(root, payload.name, payload.attributes)
+            created = presets.create_preset(root, payload.name, payload.keys)
         except worlds.WorldError as exc:
             raise HTTPException(status_code=exc.status, detail=str(exc)) from exc
         logger.info(
-            "创建预设「%s」→ %s（%d 条属性）",
+            "创建预设「%s」→ %s（%d 个属性名）",
             created["name"],
             created["path"],
-            len(created["attributes"]),
+            len(created["keys"]),
         )
         return created
 
@@ -359,15 +359,15 @@ def create_app(settings: Settings) -> FastAPI:
                 root,
                 name,
                 new_name=payload.name or None,
-                attributes=payload.attributes,
+                keys=payload.keys,
             )
         except worlds.WorldError as exc:
             raise HTTPException(status_code=exc.status, detail=str(exc)) from exc
         logger.info(
-            "更新预设「%s」→ %s（%d 条属性）",
+            "更新预设「%s」→ %s（%d 个属性名）",
             name,
             updated["name"],
-            len(updated["attributes"]),
+            len(updated["keys"]),
         )
         return updated
 

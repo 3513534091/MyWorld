@@ -78,11 +78,6 @@
     presetPickerList: $("presetPickerList"),
     presetPickerEmpty: $("presetPickerEmpty"),
     btnPresetPickerCancel: $("btnPresetPickerCancel"),
-    presetMergeDialog: $("presetMergeDialog"),
-    presetMergeText: $("presetMergeText"),
-    btnMergeCancel: $("btnMergeCancel"),
-    btnMergeKeep: $("btnMergeKeep"),
-    btnMergeOverwrite: $("btnMergeOverwrite"),
     detailError: $("detailError"),
     btnCloseWorld: $("btnCloseWorld"),
     worldMenu: $("worldMenu"),
@@ -426,6 +421,29 @@
     }
   }
 
+  /* 预设只有属性名（键），单独一种行：一个输入框 + 删除 */
+  function makeKeyRow(key = "") {
+    const row = document.createElement("div");
+    row.className = "attr-row key-row";
+
+    const input = document.createElement("input");
+    input.className = "input attr-key-input";
+    input.placeholder = "属性名，例如 年龄";
+    input.value = key;
+    input.maxLength = 40;
+    input.setAttribute("aria-label", "属性名");
+
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.className = "attr-remove";
+    remove.textContent = "×";
+    remove.setAttribute("aria-label", "删除这个属性名");
+    remove.addEventListener("click", () => row.remove());
+
+    row.append(input, remove);
+    return row;
+  }
+
   function collectRows() {
     const rows = [...(el.attrList?.querySelectorAll(".attr-row") ?? [])];
     const name = rows[0]?.querySelector(".attr-value")?.value.trim() ?? "";
@@ -439,14 +457,11 @@
     return { name, attributes };
   }
 
-  /* 创建预设时收集属性键值对 */
-  function collectPresetAttributes() {
-    return [...(el.presetAttrList?.querySelectorAll(".attr-row") ?? [])]
-      .map((row) => ({
-        label: row.querySelector(".attr-label-input")?.value.trim() ?? "",
-        value: row.querySelector(".attr-value")?.value.trim() ?? "",
-      }))
-      .filter((attr) => attr.label || attr.value);
+  /* 创建/修改预设时收集属性名 */
+  function collectPresetKeys() {
+    return [...(el.presetAttrList?.querySelectorAll(".attr-key-input") ?? [])]
+      .map((input) => input.value.trim())
+      .filter(Boolean);
   }
 
   /* 卡片重排时用 FLIP 动画：先量旧位置，改布局后再把差异补成 transform */
@@ -527,102 +542,37 @@
     currentDetailName = null;
   }
 
-  /* 面板「选用预设」：把预设属性并进当前角色；已有值冲突时先问怎么处理 */
-  let pendingPresetPlan = null;
-
+  /* 面板「选用预设」：预设只有属性名，套用时只补缺失的行，绝不动已有值 */
   function applyPresetToRows(item) {
     if (!el.attrList) return;
 
-    const attributes = item.attributes ?? [];
-    if (!attributes.length) {
-      toast(`预设「${item.name}」是空的`);
+    const keys = item.keys ?? [];
+    if (!keys.length) {
+      toast(`预设「${item.name}」还没有属性名`);
       return;
     }
 
     const rows = [...el.attrList.querySelectorAll(".attr-row")].slice(1); // 第一行是姓名，跳过
-    const plan = { item, fills: [], appends: [], conflicts: [], same: 0 };
+    const existing = new Set(
+      rows
+        .map((row) => (row.querySelector(".attr-label-input")?.value ?? "").trim())
+        .filter(Boolean),
+    );
 
-    for (const attr of attributes) {
-      const label = (attr.label ?? "").trim();
-      if (!label) continue;
-      const value = attr.value ?? "";
-
-      const existing = rows.find(
-        (row) => (row.querySelector(".attr-label-input")?.value ?? "").trim() === label,
-      );
-
-      if (!existing) {
-        plan.appends.push({ label, value });
-        continue;
-      }
-
-      const current = (existing.querySelector(".attr-value")?.value ?? "").trim();
-      if (current === value) {
-        plan.same += 1;
-      } else if (!current) {
-        plan.fills.push({ row: existing, value });
-      } else {
-        plan.conflicts.push({ row: existing, label, current, value });
-      }
-    }
-
-    if (!plan.conflicts.length) {
-      runPresetPlan(plan, "keep");
-      return;
-    }
-
-    // 有冲突：先让用户选，别把已填的值直接冲掉
-    pendingPresetPlan = plan;
-    const preview = plan.conflicts
-      .slice(0, 4)
-      .map((entry) => `${entry.label}：${entry.current} → ${entry.value}`)
-      .join("；");
-    if (el.presetMergeText) {
-      el.presetMergeText.textContent =
-        `「${item.name}」里有 ${plan.conflicts.length} 条属性和你已填的值不一样：${preview}` +
-        (plan.conflicts.length > 4 ? " …" : "") +
-        "。要用预设的值覆盖吗？";
-    }
-    el.presetMergeDialog?.showModal();
-  }
-
-  function runPresetPlan(plan, policy) {
-    let overwritten = 0;
-    let kept = 0;
-    let filled = 0;
-    let appended = 0;
-
-    for (const entry of plan.conflicts) {
-      if (policy === "overwrite") {
-        const input = entry.row.querySelector(".attr-value");
-        if (input) input.value = entry.value;
-        overwritten += 1;
-      } else {
-        kept += 1;
-      }
-    }
-
-    for (const entry of plan.fills) {
-      const input = entry.row.querySelector(".attr-value");
-      if (input) input.value = entry.value;
-      filled += 1;
-    }
-
-    for (const entry of plan.appends) {
-      el.attrList.append(makeAttrRow({ label: entry.label, value: entry.value }));
-      appended += 1;
+    let added = 0;
+    for (const key of keys) {
+      if (existing.has(key)) continue;
+      el.attrList.append(makeAttrRow({ label: key, value: "" }));
+      existing.add(key);
+      added += 1;
     }
 
     if (el.detailError) el.detailError.hidden = true;
-    pendingPresetPlan = null;
-
-    const parts = [];
-    if (overwritten) parts.push(`覆盖 ${overwritten} 条`);
-    if (kept) parts.push(`保留 ${kept} 条`);
-    if (filled) parts.push(`填充 ${filled} 条`);
-    if (appended) parts.push(`新增 ${appended} 条`);
-    if (plan.same) parts.push(`相同 ${plan.same} 条`);
-    toast(`已套用「${plan.item.name}」：${parts.join("、") || "没有变化"}`);
+    toast(
+      added
+        ? `已套用「${item.name}」：新增 ${added} 个属性名`
+        : `「${item.name}」的属性名都已经有了`,
+    );
   }
 
   async function openPresetPicker() {
@@ -652,16 +602,15 @@
       name.className = "preset-pick-name";
       name.textContent = item.name;
 
-      const attributes = item.attributes ?? [];
+      const keys = item.keys ?? [];
       const meta = document.createElement("span");
       meta.className = "preset-pick-meta";
-      meta.textContent = attributes.length ? `${attributes.length} 条属性` : "空预设";
-      meta.title = attributes.map((attr) => `${attr.label || "（无名称）"}：${attr.value}`).join("\n");
+      meta.textContent = keys.length ? `${keys.length} 个属性名` : "空预设";
+      meta.title = keys.join("、");
 
       button.append(name, meta);
       button.addEventListener("click", () => {
         el.presetPickerDialog.close();
-        // 等弹窗关完再开冲突确认，避免两个 modal 叠在一起
         requestAnimationFrame(() => applyPresetToRows(item));
       });
       el.presetPickerList.append(button);
@@ -1108,19 +1057,19 @@
     if (el.presetField) el.presetField.hidden = !isPreset;
     if (isPreset && el.presetAttrList) {
       el.presetAttrList.replaceChildren();
-      const existing = preset?.attributes ?? [];
+      const existing = preset?.keys ?? [];
       if (existing.length) {
-        for (const attr of existing) {
-          el.presetAttrList.append(makeAttrRow({ label: attr.label ?? "", value: attr.value ?? "" }));
+        for (const key of existing) {
+          el.presetAttrList.append(makeKeyRow(key));
         }
       } else {
-        el.presetAttrList.append(makeAttrRow());
+        el.presetAttrList.append(makeKeyRow());
       }
     }
 
     if (el.createHint) {
       el.createHint.textContent = isPreset
-        ? "这些键值对会存进 presets/<名字>/preset.json，之后可以套用到角色上。"
+        ? "预设只记属性名（键），套用到角色时只补缺失的属性行，不会改动已有值。"
         : isPortrait
           ? "立绘可以先不选，之后在右侧面板里点立绘也能换。"
           : "封面可以先不选，默认图照样能用；之后往世界目录里放一张 thumbnail.png 也能换。";
@@ -1167,7 +1116,7 @@
       const created = await fetchJSON(url, {
         method: editingPreset ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, ...(mode === "preset" ? { attributes: collectPresetAttributes() } : {}) }),
+        body: JSON.stringify({ name, ...(mode === "preset" ? { keys: collectPresetKeys() } : {}) }),
       });
 
       if (mode === "world" && cover.blob) {
@@ -1500,11 +1449,11 @@
       name.className = "preset-name";
       name.textContent = item.name;
 
-      const attributes = item.attributes ?? [];
+      const keys = item.keys ?? [];
       const meta = document.createElement("span");
       meta.className = "preset-meta";
-      meta.textContent = attributes.length ? `${attributes.length} 条属性` : "空预设";
-      meta.title = attributes.map((attr) => `${attr.label || "（无名称）"}：${attr.value}`).join("\n");
+      meta.textContent = keys.length ? `${keys.length} 个属性名` : "空预设";
+      meta.title = keys.join("、");
 
       const time = document.createElement("span");
       time.className = "preset-time";
@@ -1852,21 +1801,6 @@
   on(el.btnDetailSave, "click", saveCharacterDetail);
   on(el.btnUsePreset, "click", openPresetPicker);
   on(el.btnPresetPickerCancel, "click", () => el.presetPickerDialog?.close());
-  on(el.btnMergeKeep, "click", () => {
-    if (pendingPresetPlan) runPresetPlan(pendingPresetPlan, "keep");
-    el.presetMergeDialog?.close();
-  });
-  on(el.btnMergeOverwrite, "click", () => {
-    if (pendingPresetPlan) runPresetPlan(pendingPresetPlan, "overwrite");
-    el.presetMergeDialog?.close();
-  });
-  on(el.btnMergeCancel, "click", () => {
-    pendingPresetPlan = null;
-    el.presetMergeDialog?.close();
-  });
-  el.presetMergeDialog?.addEventListener("close", () => {
-    pendingPresetPlan = null;
-  });
 
   // 点面板里的立绘 → 选图 → 裁剪 → 直接上传
   on(el.detailPhotoBtn, "click", () => el.detailImage?.click());
@@ -1892,8 +1826,8 @@
 
   // 封面：选本地图片 → 裁剪弹窗
   on(el.btnPresetAddAttr, "click", () => {
-    el.presetAttrList?.append(makeAttrRow());
-    el.presetAttrList?.lastElementChild?.querySelector(".attr-label-input")?.focus();
+    el.presetAttrList?.append(makeKeyRow());
+    el.presetAttrList?.lastElementChild?.querySelector(".attr-key-input")?.focus();
   });
 
   on(el.coverPreview, "click", () => el.worldImage?.click());

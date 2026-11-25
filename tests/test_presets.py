@@ -58,40 +58,48 @@ class PresetTests(unittest.TestCase):
         names = [item["name"] for item in worlds.list_worlds(self.worlds_root)]
         self.assertEqual(names, ["世界一"])
 
-    def test_create_with_attributes(self) -> None:
-        created = presets.create_preset(
-            self.root,
-            "角色模板",
-            [
-                {"label": "年龄", "value": "17"},
-                {"label": "", "value": ""},
-                {"label": "身份", "value": "旅人"},
-            ],
-        )
-        self.assertEqual([item["label"] for item in created["attributes"]], ["年龄", "身份"])
+    def test_create_with_keys(self) -> None:
+        created = presets.create_preset(self.root, "角色模板", ["年龄", " 身份 ", ""])
+        self.assertEqual(created["keys"], ["年龄", "身份"])
 
         meta = json.loads((self.root / "角色模板" / "preset.json").read_text(encoding="utf-8"))
-        self.assertEqual(len(meta["attributes"]), 2)
-        self.assertEqual(meta["attributes"][1]["value"], "旅人")
+        self.assertEqual(meta["keys"], ["年龄", "身份"])
+        self.assertNotIn("attributes", meta)
 
         listed = presets.list_presets(self.root)[0]
-        self.assertEqual([item["label"] for item in listed["attributes"]], ["年龄", "身份"])
+        self.assertEqual(listed["keys"], ["年龄", "身份"])
 
-    def test_attributes_default_to_empty(self) -> None:
+    def test_keys_default_to_empty(self) -> None:
         created = presets.create_preset(self.root, "空预设")
-        self.assertEqual(created["attributes"], [])
-        self.assertEqual(presets.list_presets(self.root)[0]["attributes"], [])
+        self.assertEqual(created["keys"], [])
+        self.assertEqual(presets.list_presets(self.root)[0]["keys"], [])
 
-    def test_attributes_allow_duplicates(self) -> None:
+    def test_keys_dedupe_and_accept_legacy_dicts(self) -> None:
         created = presets.create_preset(
             self.root,
-            "重复值",
-            [{"label": "标签", "value": "红"}, {"label": "标签", "value": "红"}],
+            "去重",
+            ["标签", "标签", {"label": "年龄", "value": "17"}, {"key": "身份"}],
         )
-        self.assertEqual(len(created["attributes"]), 2)
+        self.assertEqual(created["keys"], ["标签", "年龄", "身份"])
+
+    def test_legacy_preset_file_is_read_as_keys(self) -> None:
+        legacy = self.root / "老预设"
+        legacy.mkdir()
+        (legacy / "preset.json").write_text(
+            json.dumps(
+                {
+                    "name": "老预设",
+                    "format": 1,
+                    "attributes": [{"label": "年龄", "value": "17"}, {"label": "身份", "value": "旅人"}],
+                },
+                ensure_ascii=False,
+            ),
+            encoding="utf-8",
+        )
+        self.assertEqual(presets.list_presets(self.root)[0]["keys"], ["年龄", "身份"])
 
     def test_delete_removes_directory(self) -> None:
-        presets.create_preset(self.root, "待删除", [{"label": "年龄", "value": "17"}])
+        presets.create_preset(self.root, "待删除", ["年龄"])
         result = presets.delete_preset(self.root, "待删除")
         self.assertTrue(result["deleted"])
         self.assertFalse((self.root / "待删除").exists())
@@ -108,26 +116,22 @@ class PresetTests(unittest.TestCase):
                 with self.assertRaises(worlds.WorldError):
                     presets.delete_preset(self.root, bad)
 
-    def test_update_attributes(self) -> None:
-        presets.create_preset(self.root, "模板", [{"label": "年龄", "value": "17"}])
-        updated = presets.update_preset(
-            self.root,
-            "模板",
-            attributes=[{"label": "身份", "value": "旅人"}, {"label": "年龄", "value": "20"}],
-        )
-        self.assertEqual([item["label"] for item in updated["attributes"]], ["身份", "年龄"])
+    def test_update_keys(self) -> None:
+        presets.create_preset(self.root, "模板", ["年龄"])
+        updated = presets.update_preset(self.root, "模板", keys=["身份", "年龄"])
+        self.assertEqual(updated["keys"], ["身份", "年龄"])
         meta = json.loads((self.root / "模板" / "preset.json").read_text(encoding="utf-8"))
-        self.assertEqual(len(meta["attributes"]), 2)
+        self.assertEqual(meta["keys"], ["身份", "年龄"])
 
     def test_update_rename(self) -> None:
-        presets.create_preset(self.root, "旧名字", [{"label": "年龄", "value": "17"}])
+        presets.create_preset(self.root, "旧名字", ["年龄"])
         updated = presets.update_preset(self.root, "旧名字", new_name="新名字")
         self.assertEqual(updated["name"], "新名字")
         self.assertTrue((self.root / "新名字").is_dir())
         self.assertFalse((self.root / "旧名字").exists())
         self.assertEqual([item["name"] for item in presets.list_presets(self.root)], ["新名字"])
-        # 改名后属性不丢
-        self.assertEqual(updated["attributes"][0]["label"], "年龄")
+        # 改名后键不丢
+        self.assertEqual(updated["keys"], ["年龄"])
 
     def test_update_rename_conflict(self) -> None:
         presets.create_preset(self.root, "甲")
@@ -138,7 +142,7 @@ class PresetTests(unittest.TestCase):
 
     def test_update_missing_returns_404(self) -> None:
         with self.assertRaises(worlds.WorldError) as ctx:
-            presets.update_preset(self.root, "不存在", attributes=[])
+            presets.update_preset(self.root, "不存在", keys=[])
         self.assertEqual(ctx.exception.status, 404)
 
 

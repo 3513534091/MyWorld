@@ -439,22 +439,16 @@ async def run_checks(port: int, data_dir: str) -> list[tuple[str, bool, str]]:
 
         async with session.post(
             base + "/api/presets",
-            json={
-                "name": "测试预设",
-                "attributes": [
-                    {"label": "年龄", "value": "17"},
-                    {"label": "身份", "value": "旅人"},
-                ],
-            },
+            json={"name": "测试预设", "keys": ["年龄", "身份"]},
         ) as response:
             preset = await response.json()
             checks.append(
                 (
-                    "POST /api/presets 创建预设（带属性）",
+                    "POST /api/presets 创建预设（带属性名）",
                     response.status == 201
                     and preset.get("path") == "presets/测试预设"
-                    and [item["label"] for item in preset.get("attributes", [])] == ["年龄", "身份"],
-                    f"{response.status} {preset.get('path')} {len(preset.get('attributes', []))}条",
+                    and preset.get("keys") == ["年龄", "身份"],
+                    f"{response.status} {preset.get('path')} {preset.get('keys')}",
                 )
             )
 
@@ -470,9 +464,9 @@ async def run_checks(port: int, data_dir: str) -> list[tuple[str, bool, str]]:
         preset_meta = json.loads((preset_dir / "preset.json").read_text(encoding="utf-8"))
         checks.append(
             (
-                "preset.json 里存了属性键值对",
-                len(preset_meta.get("attributes", [])) == 2,
-                str([item["label"] for item in preset_meta.get("attributes", [])]),
+                "preset.json 里只存属性名（不存值）",
+                preset_meta.get("keys") == ["年龄", "身份"] and "attributes" not in preset_meta,
+                str(preset_meta.get("keys")),
             )
         )
 
@@ -481,8 +475,8 @@ async def run_checks(port: int, data_dir: str) -> list[tuple[str, bool, str]]:
             listed = listing.get("items", [{}])[0]
             checks.append(
                 (
-                    "预设列表带出属性",
-                    len(listed.get("attributes", [])) == 2,
+                    "预设列表带出属性名",
+                    listed.get("keys") == ["年龄", "身份"],
                     str(listed.get("name")),
                 )
             )
@@ -491,21 +485,19 @@ async def run_checks(port: int, data_dir: str) -> list[tuple[str, bool, str]]:
             body = await response.json()
             checks.append(("预设重名返回 409", response.status == 409, str(body.get("detail", ""))))
 
-        # ---- 修改预设（改名 + 覆盖属性） ----
+        # ---- 修改预设（改名 + 覆盖属性名） ----
         async with session.patch(
             f"{base}/api/presets/{quote('测试预设')}",
-            json={
-                "name": "改名预设",
-                "attributes": [{"label": "身份", "value": "新旅人"}],
-            },
+            json={"name": "改名预设", "keys": ["身份"]},
         ) as response:
             updated = await response.json()
-            labels = [item["label"] for item in updated.get("attributes", [])]
             checks.append(
                 (
-                    "PATCH 修改预设（改名 + 属性）",
-                    response.status == 200 and updated.get("name") == "改名预设" and labels == ["身份"],
-                    f"{response.status} {updated.get('name')} {labels}",
+                    "PATCH 修改预设（改名 + 属性名）",
+                    response.status == 200
+                    and updated.get("name") == "改名预设"
+                    and updated.get("keys") == ["身份"],
+                    f"{response.status} {updated.get('name')} {updated.get('keys')}",
                 )
             )
 
@@ -514,8 +506,8 @@ async def run_checks(port: int, data_dir: str) -> list[tuple[str, bool, str]]:
         checks.append(
             (
                 "改名后 preset.json 同步",
-                renamed_meta.get("name") == "改名预设" and len(renamed_meta.get("attributes", [])) == 1,
-                str(renamed_meta.get("attributes")),
+                renamed_meta.get("name") == "改名预设" and renamed_meta.get("keys") == ["身份"],
+                str(renamed_meta.get("keys")),
             )
         )
         checks.append(("旧预设目录已改名", not (Path(data_dir).parent / "presets" / "测试预设").exists(), "ok"))
