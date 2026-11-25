@@ -351,6 +351,26 @@ def create_app(settings: Settings) -> FastAPI:
         )
         return created
 
+    @app.patch("/api/presets/{name}", summary="修改预设（名字 / 属性）")
+    async def api_update_preset(name: str, payload: PresetRequest) -> dict[str, Any]:
+        root = presets.resolve_root(worlds.resolve_root(runtime.settings.data_dir))
+        try:
+            updated = presets.update_preset(
+                root,
+                name,
+                new_name=payload.name or None,
+                attributes=payload.attributes,
+            )
+        except worlds.WorldError as exc:
+            raise HTTPException(status_code=exc.status, detail=str(exc)) from exc
+        logger.info(
+            "更新预设「%s」→ %s（%d 条属性）",
+            name,
+            updated["name"],
+            len(updated["attributes"]),
+        )
+        return updated
+
     @app.delete("/api/presets/{name}", summary="删除预设")
     async def api_delete_preset(name: str) -> dict[str, Any]:
         root = presets.resolve_root(worlds.resolve_root(runtime.settings.data_dir))

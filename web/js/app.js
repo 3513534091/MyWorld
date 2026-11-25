@@ -899,7 +899,8 @@
 
   // ---------------- 创建弹窗（世界 / 预设共用） ----------------
 
-  let createMode = null; // "world" | "preset"
+  let createMode = null; // "world" | "preset" | "character"
+  let editPresetName = null; // 非空 = 正在修改这个预设
 
   function showCreateError(message) {
     if (!el.createError) return;
@@ -913,10 +914,12 @@
     el.createError.hidden = true;
   }
 
-  function openCreateDialog(mode) {
+  function openCreateDialog(mode, preset = null) {
     if (!el.createDialog || !el.createName) return;
     createMode = mode;
+    editPresetName = preset?.name ?? null;
     const isWorld = mode === "world";
+    const isEditing = Boolean(preset);
 
     const titles = { world: "创建新世界", preset: "创建新预设", character: "新建角色" };
     const placeholders = {
@@ -924,9 +927,10 @@
       preset: "给预设取个名字",
       character: "给角色取个名字",
     };
-    el.createTitle.textContent = titles[mode] ?? "新建";
+    el.createTitle.textContent = isEditing ? "修改预设" : titles[mode] ?? "新建";
     el.createName.placeholder = placeholders[mode] ?? "取个名字";
-    el.createName.value = "";
+    el.createName.value = preset?.name ?? "";
+    if (el.btnDialogSubmit) el.btnDialogSubmit.textContent = isEditing ? "保存" : "创建";
     clearCreateError();
 
     // 世界要 16:9 封面，角色要 9:16 立绘；预设不需要图片
@@ -949,9 +953,14 @@
     // 预设：填的是给角色用的属性键值对
     const isPreset = mode === "preset";
     if (el.presetField) el.presetField.hidden = !isPreset;
-    if (isPreset) {
-      if (el.presetAttrList) {
-        el.presetAttrList.replaceChildren();
+    if (isPreset && el.presetAttrList) {
+      el.presetAttrList.replaceChildren();
+      const existing = preset?.attributes ?? [];
+      if (existing.length) {
+        for (const attr of existing) {
+          el.presetAttrList.append(makeAttrRow({ label: attr.label ?? "", value: attr.value ?? "" }));
+        }
+      } else {
         el.presetAttrList.append(makeAttrRow());
       }
     }
@@ -972,6 +981,8 @@
 
   function closeCreateDialog() {
     clearCreateError();
+    editPresetName = null;
+    if (el.btnDialogSubmit) el.btnDialogSubmit.textContent = "创建";
     if (el.createDialog?.open) el.createDialog.close();
   }
 
@@ -988,9 +999,10 @@
 
     el.btnDialogSubmit.disabled = true;
     try {
+      const editingPreset = mode === "preset" && editPresetName;
       let url = "/api/worlds";
       if (mode === "preset") {
-        url = "/api/presets";
+        url = editingPreset ? `/api/presets/${encodeURIComponent(editPresetName)}` : "/api/presets";
       } else if (mode === "character") {
         if (!loadedWorld) {
           showCreateError("先加载一个世界");
@@ -1000,7 +1012,7 @@
       }
 
       const created = await fetchJSON(url, {
-        method: "POST",
+        method: editingPreset ? "PATCH" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name, ...(mode === "preset" ? { attributes: collectPresetAttributes() } : {}) }),
       });
@@ -1049,7 +1061,8 @@
         debug("新建角色", created);
       } else {
         await loadPresets();
-        debug("创建预设", created);
+        toast(editingPreset ? "预设已更新" : "预设已创建");
+        debug(editingPreset ? "修改预设" : "创建预设", created);
       }
     } catch (err) {
       showCreateError(err.message);
@@ -1346,6 +1359,7 @@
       time.title = item.created_at ?? "";
 
       row.append(name, meta, time);
+      row.addEventListener("click", () => openCreateDialog("preset", item));
       el.presetList.append(row);
     }
   }

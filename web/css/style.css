@@ -801,6 +801,13 @@ body {
   border: 1px solid var(--border-soft);
   border-radius: var(--radius-md);
   background: var(--chip-bg);
+  cursor: pointer;
+  transition: border-color 0.16s ease, background 0.16s ease;
+}
+
+.preset-item:hover {
+  border-color: var(--accent);
+  background: var(--accent-soft);
 }
 
 .preset-name {

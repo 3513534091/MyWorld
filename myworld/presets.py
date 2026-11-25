@@ -113,3 +113,49 @@ def delete_preset(root: Path, raw_name: str) -> dict[str, Any]:
     except OSError as exc:
         raise WorldError(f"删除失败：{exc.strerror or exc}") from exc
     return {"name": name, "deleted": True, "path": f"presets/{name}"}
+
+
+def update_preset(
+    root: Path,
+    raw_name: str,
+    *,
+    new_name: str | None = None,
+    attributes: Any = None,
+) -> dict[str, Any]:
+    """改预设：重命名目录 + 覆盖属性键值对。"""
+    name = validate_name(raw_name)
+    directory = _preset_path(root, name)
+    if not directory.is_dir():
+        raise WorldError(f"预设「{name}」不存在", status=404)
+
+    target_name = name
+    if new_name is not None:
+        target_name = validate_name(new_name)
+        if target_name != name:
+            target = root / target_name
+            if target.exists():
+                raise WorldError(f"预设「{target_name}」已经存在", status=409)
+            try:
+                directory.rename(target)
+            except OSError as exc:
+                raise WorldError(f"重命名失败：{exc.strerror or exc}") from exc
+            directory = target
+
+    meta = _read_meta(directory)
+    meta["name"] = target_name
+    meta["format"] = FORMAT_VERSION
+    meta.setdefault("created_at", datetime.now(timezone.utc).isoformat(timespec="seconds"))
+    if attributes is not None:
+        meta["attributes"] = normalize_attributes(attributes)
+    meta.setdefault("attributes", [])
+
+    (directory / META_NAME).write_text(
+        json.dumps(meta, ensure_ascii=False, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    return {
+        "name": target_name,
+        "created_at": meta["created_at"],
+        "path": f"presets/{target_name}",
+        "attributes": meta["attributes"],
+    }

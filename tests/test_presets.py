@@ -108,6 +108,39 @@ class PresetTests(unittest.TestCase):
                 with self.assertRaises(worlds.WorldError):
                     presets.delete_preset(self.root, bad)
 
+    def test_update_attributes(self) -> None:
+        presets.create_preset(self.root, "模板", [{"label": "年龄", "value": "17"}])
+        updated = presets.update_preset(
+            self.root,
+            "模板",
+            attributes=[{"label": "身份", "value": "旅人"}, {"label": "年龄", "value": "20"}],
+        )
+        self.assertEqual([item["label"] for item in updated["attributes"]], ["身份", "年龄"])
+        meta = json.loads((self.root / "模板" / "preset.json").read_text(encoding="utf-8"))
+        self.assertEqual(len(meta["attributes"]), 2)
+
+    def test_update_rename(self) -> None:
+        presets.create_preset(self.root, "旧名字", [{"label": "年龄", "value": "17"}])
+        updated = presets.update_preset(self.root, "旧名字", new_name="新名字")
+        self.assertEqual(updated["name"], "新名字")
+        self.assertTrue((self.root / "新名字").is_dir())
+        self.assertFalse((self.root / "旧名字").exists())
+        self.assertEqual([item["name"] for item in presets.list_presets(self.root)], ["新名字"])
+        # 改名后属性不丢
+        self.assertEqual(updated["attributes"][0]["label"], "年龄")
+
+    def test_update_rename_conflict(self) -> None:
+        presets.create_preset(self.root, "甲")
+        presets.create_preset(self.root, "乙")
+        with self.assertRaises(worlds.WorldError) as ctx:
+            presets.update_preset(self.root, "甲", new_name="乙")
+        self.assertEqual(ctx.exception.status, 409)
+
+    def test_update_missing_returns_404(self) -> None:
+        with self.assertRaises(worlds.WorldError) as ctx:
+            presets.update_preset(self.root, "不存在", attributes=[])
+        self.assertEqual(ctx.exception.status, 404)
+
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

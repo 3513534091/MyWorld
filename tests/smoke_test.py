@@ -491,13 +491,50 @@ async def run_checks(port: int, data_dir: str) -> list[tuple[str, bool, str]]:
             body = await response.json()
             checks.append(("预设重名返回 409", response.status == 409, str(body.get("detail", ""))))
 
+        # ---- 修改预设（改名 + 覆盖属性） ----
+        async with session.patch(
+            f"{base}/api/presets/{quote('测试预设')}",
+            json={
+                "name": "改名预设",
+                "attributes": [{"label": "身份", "value": "新旅人"}],
+            },
+        ) as response:
+            updated = await response.json()
+            labels = [item["label"] for item in updated.get("attributes", [])]
+            checks.append(
+                (
+                    "PATCH 修改预设（改名 + 属性）",
+                    response.status == 200 and updated.get("name") == "改名预设" and labels == ["身份"],
+                    f"{response.status} {updated.get('name')} {labels}",
+                )
+            )
+
+        renamed_dir = Path(data_dir).parent / "presets" / "改名预设"
+        renamed_meta = json.loads((renamed_dir / "preset.json").read_text(encoding="utf-8"))
+        checks.append(
+            (
+                "改名后 preset.json 同步",
+                renamed_meta.get("name") == "改名预设" and len(renamed_meta.get("attributes", [])) == 1,
+                str(renamed_meta.get("attributes")),
+            )
+        )
+        checks.append(("旧预设目录已改名", not (Path(data_dir).parent / "presets" / "测试预设").exists(), "ok"))
+
+        await session.post(base + "/api/presets", json={"name": "另一预设"})
+        async with session.patch(
+            f"{base}/api/presets/{quote('改名预设')}", json={"name": "另一预设"}
+        ) as response:
+            checks.append(("预设改成已存在的名字返回 409", response.status == 409, str(response.status)))
+
+        await session.delete(f"{base}/api/presets/{quote('另一预设')}")
+
         async with session.get(base + "/api/worlds") as response:
             listing = await response.json()
             names = [item["name"] for item in listing.get("items", [])]
-            checks.append(("预设不会混进世界列表", "测试预设" not in names, str(names)))
+            checks.append(("预设不会混进世界列表", "改名预设" not in names, str(names)))
 
         # ---- 删除预设 ----
-        async with session.delete(f"{base}/api/presets/{quote('测试预设')}") as response:
+        async with session.delete(f"{base}/api/presets/{quote('改名预设')}") as response:
             body = await response.json()
             checks.append(
                 (
@@ -507,13 +544,13 @@ async def run_checks(port: int, data_dir: str) -> list[tuple[str, bool, str]]:
                 )
             )
 
-        checks.append(("预设目录已删除", not preset_dir.exists(), str(preset_dir)))
+        checks.append(("预设目录已删除", not renamed_dir.exists(), str(renamed_dir)))
 
         async with session.get(base + "/api/presets") as response:
             listing = await response.json()
             checks.append(("删除后预设列表为空", listing.get("items") == [], str(listing.get("items"))))
 
-        async with session.delete(f"{base}/api/presets/{quote('测试预设')}") as response:
+        async with session.delete(f"{base}/api/presets/{quote('改名预设')}") as response:
             checks.append(("删除不存在的预设返回 404", response.status == 404, str(response.status)))
 
     return checks
