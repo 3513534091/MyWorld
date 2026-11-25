@@ -66,6 +66,7 @@
     confirmText: $("confirmText"),
     btnConfirmOk: $("btnConfirmOk"),
     btnConfirmCancel: $("btnConfirmCancel"),
+    toast: $("toast"),
   };
 
   const state = {
@@ -91,6 +92,20 @@
   const on = (node, event, handler) => {
     if (node) node.addEventListener(event, handler);
   };
+
+  let toastTimer = null;
+
+  /* 底部轻提示：失败原因不再只躺在 console 里 */
+  function toast(message, kind = "info") {
+    if (!el.toast) return;
+    el.toast.textContent = message;
+    el.toast.hidden = false;
+    el.toast.classList.toggle("is-error", kind === "error");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => {
+      el.toast.hidden = true;
+    }, 3200);
+  }
 
   // ---------------- 明暗主题 ----------------
 
@@ -417,8 +432,11 @@
           body: JSON.stringify({ names }),
         });
         await loadCharacters();
+        toast("角色顺序已保存");
         debug("角色顺序已保存", names);
       } catch (err) {
+        // 多半是后端还是旧进程（重启 MyWorld.exe 即可）；把原因直接告诉用户
+        toast("顺序保存失败：" + err.message + "（后端可能是旧进程，重启 MyWorld.exe 试试）", "error");
         debug("保存角色顺序失败", err.message);
         await loadCharacters();
       }
@@ -661,7 +679,8 @@
           );
           if (!response.ok) throw new Error(`HTTP ${response.status}`);
         } catch (err) {
-          // 角色已经建好了，立绘没存上去：只记日志
+          // 角色已经建好了，立绘没存上去：提示一下
+          toast("立绘保存失败：" + err.message, "error");
           debug("角色立绘保存失败", err.message);
         }
       }
