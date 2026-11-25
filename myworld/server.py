@@ -109,6 +109,19 @@ def create_app(settings: Settings) -> FastAPI:
         runtime.requests += 1
         return await call_next(request)
 
+    @app.middleware("http")
+    async def _no_stale_assets(request, call_next):
+        """本地程序的静态资源一律不缓存。
+
+        否则改了 HTML/JS 之后浏览器可能新旧混用：新脚本绑不到旧页面上的元素，
+        初始化就抛错，表现成「缩略图没了、按钮点了没反应」。
+        """
+        response = await call_next(request)
+        path = request.url.path
+        if path == "/" or path.endswith((".js", ".css", ".html", ".svg")):
+            response.headers["Cache-Control"] = "no-store"
+        return response
+
     @app.get("/api/status", summary="服务状态")
     async def api_status() -> dict[str, Any]:
         return runtime.status()

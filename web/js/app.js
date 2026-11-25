@@ -46,6 +46,11 @@
   // DevTools 里的调试输出，不影响页面
   const debug = (...args) => console.debug("[myworld]", ...args);
 
+  // 页面结构与脚本版本万一不匹配（比如缓存错位），宁可少绑一个事件也别整个脚本崩掉
+  const on = (node, event, handler) => {
+    if (node) node.addEventListener(event, handler);
+  };
+
   // ---------------- 明暗主题 ----------------
 
   const THEME_KEY = "myworld.theme";
@@ -67,7 +72,7 @@
     // 这里只负责同步按钮外观与手动切换。
     applyTheme(currentTheme());
 
-    el.btnTheme.addEventListener("click", () => {
+    on(el.btnTheme, "click", () => {
       const next = currentTheme() === "light" ? "dark" : "light";
       applyTheme(next);
       try {
@@ -159,7 +164,8 @@
       // 后端在没有真实缩略图时返回默认图（web/img/world-default.svg）
       img.src = `/api/worlds/${encodeURIComponent(item.name)}/thumbnail`;
       img.alt = item.name;
-      img.loading = "lazy";
+      // 不用 loading="lazy"：动态插入的元素在部分浏览器里不会触发懒加载，
+      // 表现就是缩略图一直空着。本地小图直接加载更快也更可靠。
       img.decoding = "async";
       thumb.append(img);
 
@@ -184,14 +190,17 @@
   }
 
   function openWorldForm() {
+    if (!el.worldForm || !el.btnCreateWorld) return;
     el.btnCreateWorld.hidden = true;
     el.worldForm.hidden = false;
     clearWorldError();
     el.worldName.value = "";
-    el.worldName.focus();
+    // 等这一帧渲染完再聚焦，避免元素还没上屏时 focus 无效
+    requestAnimationFrame(() => el.worldName?.focus());
   }
 
   function closeWorldForm() {
+    if (!el.worldForm || !el.btnCreateWorld) return;
     el.worldForm.hidden = true;
     el.btnCreateWorld.hidden = false;
     el.worldName.value = "";
@@ -199,6 +208,7 @@
   }
 
   async function createWorld() {
+    if (!el.worldName) return;
     const name = el.worldName.value.trim();
     if (!name) {
       showWorldError("先给世界取个名字");
@@ -469,13 +479,13 @@
 
   initTheme();
   initRail();
-  el.btnCreateWorld.addEventListener("click", openWorldForm);
-  el.btnCancelWorld.addEventListener("click", closeWorldForm);
-  el.worldForm.addEventListener("submit", (event) => {
+  on(el.btnCreateWorld, "click", openWorldForm);
+  on(el.btnCancelWorld, "click", closeWorldForm);
+  on(el.worldForm, "submit", (event) => {
     event.preventDefault();
     createWorld();
   });
-  el.worldName.addEventListener("keydown", (event) => {
+  on(el.worldName, "keydown", (event) => {
     if (event.key === "Escape") closeWorldForm();
   });
   refreshStatus();
