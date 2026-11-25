@@ -450,12 +450,18 @@
       el.cropDialog.showModal();
       requestAnimationFrame(() => {
         if (!el.cropFrame) return;
-        const rect = el.cropFrame.getBoundingClientRect();
-        cover.frame = { w: rect.width, h: rect.height };
-        cover.minScale = Math.max(rect.width / img.naturalWidth, rect.height / img.naturalHeight);
+        // 不能用 getBoundingClientRect：弹窗有入场缩放动画，量到的尺寸会偏小，
+        // 导致图片比画框略窄、右边露出黑边。clientWidth/Height 不受 transform 影响。
+        const frameW = el.cropFrame.clientWidth;
+        const frameH = el.cropFrame.clientHeight;
+        if (!frameW || !frameH) return;
+
+        cover.frame = { w: frameW, h: frameH };
+        // 加一点点余量，避免亚像素取整在边缘漏出 1px 背景
+        cover.minScale = Math.max(frameW / img.naturalWidth, frameH / img.naturalHeight) + 0.001;
         cover.scale = cover.minScale;
-        cover.offset.x = (rect.width - img.naturalWidth * cover.scale) / 2;
-        cover.offset.y = (rect.height - img.naturalHeight * cover.scale) / 2;
+        cover.offset.x = (frameW - img.naturalWidth * cover.scale) / 2;
+        cover.offset.y = (frameH - img.naturalHeight * cover.scale) / 2;
         clampCover();
         el.cropZoom.value = "100";
         applyCoverTransform();
