@@ -400,13 +400,18 @@ body {
 }
 
 .panel-footer {
+  display: none;
   flex: 0 0 auto;
-  display: flex;
   flex-direction: column;
   gap: 6px;
   padding: 10px 14px 12px;
   border-top: 1px solid var(--border);
   background: var(--panel);
+}
+
+/* 只在「世界」面板显示 */
+.panel[data-active-pane="world"] .panel-footer {
+  display: flex;
 }
 
 .panel-footer-row {

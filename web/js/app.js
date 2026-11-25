@@ -20,6 +20,7 @@
     btnTheme: $("btnTheme"),
     layout: $("layout"),
     sidebar: $("sidebar"),
+    panel: document.querySelector(".panel"),
     btnSidebar: $("btnSidebar"),
     worldName: $("worldName"),
     worldForm: $("worldForm"),
@@ -120,6 +121,8 @@
     document.querySelectorAll(".pane").forEach((pane) => {
       pane.hidden = pane.dataset.pane !== name;
     });
+    // 底部「选中项 + 加载」只在世界面板出现
+    if (el.panel) el.panel.dataset.activePane = name;
     // 世界列表可能被别处改过（比如删了目录），切过去时 reload 一次
     if (name === "world") loadWorlds();
   }
