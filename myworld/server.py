@@ -22,7 +22,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from . import __version__, presets, worlds
+from . import __version__, characters, presets, worlds
 from .config import Settings
 from .events import EventBus
 
@@ -30,6 +30,10 @@ WEB_DIR = Path(__file__).resolve().parent.parent / "web"
 DEFAULT_WORLD_THUMBS = {
     "dark": WEB_DIR / "img" / "world-default.svg",
     "light": WEB_DIR / "img" / "world-default-light.svg",
+}
+DEFAULT_CHARACTER_PORTRAITS = {
+    "dark": WEB_DIR / "img" / "character-default.svg",
+    "light": WEB_DIR / "img" / "character-default-light.svg",
 }
 logger = logging.getLogger("myworld")
 
@@ -184,6 +188,67 @@ def create_app(settings: Settings) -> FastAPI:
             raise HTTPException(status_code=exc.status, detail=str(exc)) from exc
         logger.info("删除世界「%s」", result["name"])
         return result
+
+    @app.get("/api/worlds/{world}/characters", summary="列出世界里的角色")
+    async def api_characters(world: str) -> dict[str, Any]:
+        root = worlds.resolve_root(runtime.settings.data_dir)
+        try:
+            items = characters.list_characters(root, world)
+        except worlds.WorldError as exc:
+            raise HTTPException(status_code=exc.status, detail=str(exc)) from exc
+        return {"world": world, "items": items}
+
+    @app.post("/api/worlds/{world}/characters", summary="新建角色", status_code=201)
+    async def api_create_character(world: str, payload: NameRequest) -> dict[str, Any]:
+        root = worlds.resolve_root(runtime.settings.data_dir)
+        try:
+            created = characters.create_character(root, world, payload.name)
+        except worlds.WorldError as exc:
+            raise HTTPException(status_code=exc.status, detail=str(exc)) from exc
+        logger.info("新建角色「%s」→ %s", created["name"], created["path"])
+        return created
+
+    @app.get("/api/worlds/{world}/characters/{name}/portrait", summary="角色立绘（没有则用默认图）")
+    async def api_character_portrait(world: str, name: str, theme: str = "dark") -> FileResponse:
+        root = worlds.resolve_root(runtime.settings.data_dir)
+        try:
+            found = characters.find_portrait(root, world, name)
+        except worlds.WorldError as exc:
+            raise HTTPException(status_code=exc.status, detail=str(exc)) from exc
+
+        headers = {"Cache-Control": "no-cache"}
+        if found is None:
+            default = DEFAULT_CHARACTER_PORTRAITS.get(theme, DEFAULT_CHARACTER_PORTRAITS["dark"])
+            if not default.is_file():
+                raise HTTPException(status_code=500, detail="默认角色图片缺失")
+            return FileResponse(default, media_type="image/svg+xml", headers=headers)
+        return FileResponse(found, headers=headers)
+
+    @app.post("/api/worlds/{world}/characters/{name}/portrait", summary="上传角色立绘")
+    async def api_upload_portrait(world: str, name: str, request: Request) -> dict[str, Any]:
+        root = worlds.resolve_root(runtime.settings.data_dir)
+
+        content_type = (request.headers.get("content-type") or "").split(";")[0].strip().lower()
+        ext = ALLOWED_THUMB_TYPES.get(content_type)
+        if ext is None:
+            raise HTTPException(status_code=400, detail="只支持 PNG / JPEG / WebP 图片")
+
+        data = await request.body()
+        if not data:
+            raise HTTPException(status_code=400, detail="图片内容为空")
+        if len(data) > MAX_THUMB_BYTES:
+            limit_mb = MAX_THUMB_BYTES // (1024 * 1024)
+            raise HTTPException(status_code=413, detail=f"图片太大（上限 {limit_mb} MB）")
+
+        try:
+            target = characters.save_portrait(root, world, name, data, ext)
+        except worlds.WorldError as exc:
+            raise HTTPException(status_code=exc.status, detail=str(exc)) from exc
+        except OSError as exc:
+            raise HTTPException(status_code=500, detail=f"保存失败：{exc}") from exc
+
+        logger.info("更新角色立绘「%s/%s」→ %s（%.1f KB）", world, name, target.name, len(data) / 1024)
+        return {"world": world, "name": name, "portrait": target.name, "bytes": len(data)}
 
     @app.get("/api/presets", summary="列出所有预设")
     async def api_presets() -> dict[str, Any]:

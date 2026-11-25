@@ -52,9 +52,11 @@
     btnLoadWorld: $("btnLoadWorld"),
     loadError: $("loadError"),
     canvasHint: $("canvasHint"),
-    canvasWorld: $("canvasWorld"),
-    canvasWorldName: $("canvasWorldName"),
-    canvasWorldPath: $("canvasWorldPath"),
+    characterView: $("characterView"),
+    characterWorldName: $("characterWorldName"),
+    characterWorldPath: $("characterWorldPath"),
+    characterList: $("characterList"),
+    characterEmpty: $("characterEmpty"),
     btnCloseWorld: $("btnCloseWorld"),
     worldMenu: $("worldMenu"),
     menuDelete: $("menuDelete"),
@@ -164,7 +166,7 @@
 
   let selectedWorld = null;
   let selectedItem = null;
-  let loadedWorldName = null;
+  let loadedWorld = null;
   let menuTarget = null;
   let pendingDelete = null;
 
@@ -260,7 +262,7 @@
   /* 主题切换后，让默认缩略图跟着换版本 */
   function refreshThumbnailThemes() {
     const theme = currentTheme();
-    document.querySelectorAll(".world-card img").forEach((img) => {
+    document.querySelectorAll(".world-card img, .character-card img").forEach((img) => {
       const base = img.dataset.thumbBase;
       if (base) img.src = `${base}?theme=${theme}`;
     });
@@ -286,18 +288,80 @@
       return;
     }
     clearLoadError();
-    loadedWorldName = selectedItem.name;
+    loadedWorld = selectedItem;
+
     if (el.canvasHint) el.canvasHint.hidden = true;
-    if (el.canvasWorld) el.canvasWorld.hidden = false;
-    if (el.canvasWorldName) el.canvasWorldName.textContent = selectedItem.name;
-    if (el.canvasWorldPath) el.canvasWorldPath.textContent = selectedItem.path;
+    if (el.characterView) el.characterView.hidden = false;
+    if (el.characterWorldName) el.characterWorldName.textContent = selectedItem.name;
+    if (el.characterWorldPath) el.characterWorldPath.textContent = selectedItem.path;
+
+    await loadCharacters();
     debug("加载世界", selectedItem);
   }
 
   function closeLoadedWorld() {
-    loadedWorldName = null;
-    if (el.canvasWorld) el.canvasWorld.hidden = true;
+    loadedWorld = null;
+    if (el.characterView) el.characterView.hidden = true;
     if (el.canvasHint) el.canvasHint.hidden = false;
+    if (el.characterList) el.characterList.replaceChildren();
+    if (el.characterEmpty) el.characterEmpty.hidden = true;
+  }
+
+  // ---------------- 角色 ----------------
+
+  async function loadCharacters() {
+    if (!el.characterList) return;
+    if (!loadedWorld) {
+      el.characterList.replaceChildren();
+      return;
+    }
+    try {
+      const data = await fetchJSON(`/api/worlds/${encodeURIComponent(loadedWorld.name)}/characters`);
+      renderCharacters(Array.isArray(data.items) ? data.items : []);
+    } catch (err) {
+      debug("读取角色失败", err.message);
+    }
+  }
+
+  function renderCharacters(items) {
+    el.characterList.replaceChildren();
+
+    for (const item of items) {
+      const card = document.createElement("figure");
+      card.className = "character-card";
+      card.dataset.name = item.name;
+      card.title = `${item.name} · ${formatStartTime(item.created_at)}`;
+
+      const thumb = document.createElement("div");
+      thumb.className = "character-thumb";
+      const img = document.createElement("img");
+      const base = `/api/worlds/${encodeURIComponent(loadedWorld.name)}/characters/${encodeURIComponent(item.name)}/portrait`;
+      img.dataset.thumbBase = base;
+      img.src = `${base}?theme=${currentTheme()}`;
+      img.alt = item.name;
+      img.decoding = "async";
+      thumb.append(img);
+
+      const name = document.createElement("figcaption");
+      name.className = "character-name";
+      name.textContent = item.name;
+
+      card.append(thumb, name);
+      el.characterList.append(card);
+    }
+
+    // 「新建角色」永远排在最后一个角色后面
+    el.characterList.append(makeCharacterCreateTile());
+    if (el.characterEmpty) el.characterEmpty.hidden = items.length > 0;
+  }
+
+  function makeCharacterCreateTile() {
+    const tile = document.createElement("button");
+    tile.type = "button";
+    tile.className = "character-create";
+    tile.innerHTML = `<span class="character-create-plus">＋</span><span>新建角色</span>`;
+    tile.addEventListener("click", () => openCreateDialog("character"));
+    return tile;
   }
 
   // ---------------- 世界卡片右键菜单 ----------------
@@ -371,7 +435,7 @@
       }
 
       if (selectedWorld === item.name) clearSelection();
-      if (loadedWorldName === item.name) closeLoadedWorld();
+      if (loadedWorld?.name === item.name) closeLoadedWorld();
 
       pendingDelete = null;
       el.confirmDialog.close();
@@ -405,15 +469,21 @@
     createMode = mode;
     const isWorld = mode === "world";
 
-    el.createTitle.textContent = isWorld ? "创建新世界" : "创建新预设";
-    el.createName.placeholder = isWorld ? "给世界取个名字" : "给预设取个名字";
+    const titles = { world: "创建新世界", preset: "创建新预设", character: "新建角色" };
+    const placeholders = {
+      world: "给世界取个名字",
+      preset: "给预设取个名字",
+      character: "给角色取个名字",
+    };
+    el.createTitle.textContent = titles[mode] ?? "新建";
+    el.createName.placeholder = placeholders[mode] ?? "取个名字";
     el.createName.value = "";
     clearCreateError();
 
     // 只有建世界才有封面（选图 + 裁剪）
     if (el.coverField) el.coverField.hidden = !isWorld;
+    if (isWorld) resetCover();
     el.createDialog.classList.toggle("is-wide", isWorld);
-    resetCover();
 
     el.createDialog.showModal();
     requestAnimationFrame(() => el.createName?.focus());
@@ -437,7 +507,17 @@
 
     el.btnDialogSubmit.disabled = true;
     try {
-      const url = mode === "world" ? "/api/worlds" : "/api/presets";
+      let url = "/api/worlds";
+      if (mode === "preset") {
+        url = "/api/presets";
+      } else if (mode === "character") {
+        if (!loadedWorld) {
+          showCreateError("先加载一个世界");
+          return;
+        }
+        url = `/api/worlds/${encodeURIComponent(loadedWorld.name)}/characters`;
+      }
+
       const created = await fetchJSON(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -465,6 +545,9 @@
         await loadWorlds();
         const node = el.worldList.querySelector(`.world-card[data-name="${CSS.escape(created.name)}"]`);
         if (node) selectWorld(created, node);
+      } else if (mode === "character") {
+        await loadCharacters();
+        debug("新建角色", created);
       } else {
         await loadPresets();
         debug("创建预设", created);
@@ -728,6 +811,19 @@
           other.classList.toggle("is-active", active);
           other.setAttribute("aria-selected", String(active));
         });
+
+        // 「角色」栏：有加载的世界就显示角色图库，否则仍显示占位提示
+        if (tab.dataset.tab === "characters") {
+          if (loadedWorld) {
+            if (el.canvasHint) el.canvasHint.hidden = true;
+            if (el.characterView) el.characterView.hidden = false;
+            loadCharacters();
+          } else {
+            if (el.characterView) el.characterView.hidden = true;
+            if (el.canvasHint) el.canvasHint.hidden = false;
+          }
+        }
+
         debug("切换画布分栏", tab.dataset.tab);
       });
     });

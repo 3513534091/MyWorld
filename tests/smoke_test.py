@@ -234,6 +234,64 @@ async def run_checks(port: int, data_dir: str) -> list[tuple[str, bool, str]]:
         escaped = (Path(data_dir).parent / "escape").exists()
         checks.append(("路径逃逸被挡住", not escaped, "数据目录同级没有出现 escape"))
 
+        # ---- 角色（属于某个世界） ----
+        char_base = f"{base}/api/worlds/{quote('测试世界')}/characters"
+        async with session.get(char_base) as response:
+            listing = await response.json()
+            checks.append(
+                ("GET 角色列表初始为空", response.status == 200 and listing.get("items") == [], str(listing.get("items")))
+            )
+
+        async with session.post(char_base, json={"name": "测试角色"}) as response:
+            created_char = await response.json()
+            checks.append(
+                (
+                    "POST 新建角色",
+                    response.status == 201 and created_char.get("path") == "data/测试世界/characters/测试角色",
+                    f"{response.status} {created_char.get('path')}",
+                )
+            )
+
+        char_dir = Path(data_dir) / "测试世界" / "characters" / "测试角色"
+        checks.append(("角色目录与 character.json 已生成", (char_dir / "character.json").is_file(), str(char_dir)))
+
+        async with session.get(char_base) as response:
+            listing = await response.json()
+            names = [item["name"] for item in listing.get("items", [])]
+            checks.append(("角色出现在列表里", names == ["测试角色"], str(names)))
+
+        async with session.post(char_base, json={"name": "测试角色"}) as response:
+            checks.append(("角色重名返回 409", response.status == 409, str(response.status)))
+
+        portrait_url = f"{char_base}/{quote('测试角色')}/portrait"
+        async with session.get(portrait_url + "?theme=dark") as response:
+            body = await response.read()
+            checks.append(
+                (
+                    "无立绘时回落到默认角色图",
+                    response.status == 200
+                    and response.headers.get("Content-Type", "").startswith("image/svg+xml")
+                    and b"CHARACTER" in body,
+                    f"{response.status} {len(body)}B",
+                )
+            )
+
+        async with session.post(portrait_url, data=png_bytes, headers={"Content-Type": "image/png"}) as response:
+            checks.append(("上传角色立绘", response.status == 200, str(response.status)))
+
+        async with session.get(portrait_url) as response:
+            served = await response.read()
+            checks.append(
+                (
+                    "上传后立绘返回真实图片",
+                    response.status == 200 and served == png_bytes,
+                    f"{response.status} {len(served)}B",
+                )
+            )
+
+        async with session.get(f"{base}/api/worlds/{quote('不存在的世界')}/characters") as response:
+            checks.append(("不存在世界的角色列表 404", response.status == 404, str(response.status)))
+
         # ---- 删除世界（放在世界相关断言之后，否则会把后面要用的目录删掉） ----
         async with session.delete(f"{base}/api/worlds/{quote('测试世界')}") as response:
             body = await response.json()
@@ -250,6 +308,14 @@ async def run_checks(port: int, data_dir: str) -> list[tuple[str, bool, str]]:
                 "世界目录已从磁盘移除",
                 not (Path(data_dir) / "测试世界").exists(),
                 str(Path(data_dir) / "测试世界"),
+            )
+        )
+
+        checks.append(
+            (
+                "角色随世界目录一起删除",
+                not (Path(data_dir) / "测试世界" / "characters").exists(),
+                "characters/ 已不存在",
             )
         )
 

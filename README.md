@@ -152,6 +152,25 @@ presets/
 
 > 预设目前只有目录与元数据，具体的「一套参数」内容等执行链路做完再定义。
 
+## 角色（画布区的「角色」栏）
+
+先在「世界」里选中一个世界点「加载」，画布区就会切成该世界的角色图库：每个角色是一张 **9:16 立绘 + 下方名字**，按名字排序；最后那张虚线卡片是「新建角色」，点它在弹窗里输入名字即可。还没加载世界时，这一栏会提示先去左侧加载。
+
+角色属于世界，存在世界目录下：
+
+```
+data/山与海/
+  world.json
+  characters/
+    阿澈/
+      character.json
+      portrait.png   # 可选，没有就用默认立绘
+```
+
+默认立绘也有深浅两版，切主题自动换；想换自己的立绘用 `POST /api/worlds/{世界}/characters/{角色}/portrait`（PNG/JPEG/WebP，≤5 MB）。
+
+![角色图库](docs/screenshot-characters.png)
+
 ## 接口
 
 | 方法 | 路径 | 说明 |
@@ -166,6 +185,10 @@ presets/
 | POST | `/api/worlds/{名字}/thumbnail` | 上传封面（裁剪后的原图字节，PNG/JPEG/WebP，≤5 MB）；非图片 400、太大 413 |
 | GET | `/api/presets` | 列出 `presets/` 下所有预设 |
 | POST | `/api/presets` | 创建预设，体 `{"name": "名字"}`；重名 409、非法名 400 |
+| GET | `/api/worlds/{世界}/characters` | 列出某个世界的角色 |
+| POST | `/api/worlds/{世界}/characters` | 新建角色，体 `{"name": "名字"}`；重名 409 |
+| GET | `/api/worlds/{世界}/characters/{角色}/portrait` | 角色立绘；没有则按 `?theme=` 返回默认图 |
+| POST | `/api/worlds/{世界}/characters/{角色}/portrait` | 上传立绘（PNG/JPEG/WebP，≤5 MB） |
 | POST | `/api/demo/tick` | 向所有已连接页面广播一条事件（验证推送链路） |
 | GET | `/api/docs` | 自动生成的 Swagger 文档 |
 | WS | `/ws` | 心跳与事件推送通道 |
@@ -201,6 +224,7 @@ myworld/
   events.py            进程内事件总线（发布 → 多个 WS 订阅者）
   server.py            FastAPI 应用：REST + WebSocket + 静态托管
   worlds.py            世界管理：名字校验、创建、列表（data/ 目录）
+  characters.py        角色管理：每个世界下的 characters/ 子目录
   presets.py           预设管理：同样的名字规则，存 presets/ 目录
 web/
   index.html           界面结构：顶栏 / 左侧功能区 / 内容面板 / 二级顶栏 / 画布
@@ -208,6 +232,8 @@ web/
   js/app.js            状态渲染、WS 连接/心跳/重连、世界图库与创建
   img/world-default.svg 世界缩略图默认图（深色）
   img/world-default-light.svg 世界缩略图默认图（浅色）
+  img/character-default.svg 角色立绘默认图（深色）
+  img/character-default-light.svg 角色立绘默认图（浅色）
 data/
   .gitkeep             世界目录（内容不入库）
 presets/
@@ -215,8 +241,9 @@ presets/
 tests/
   test_config.py       配置解析单元测试（纯标准库）
   test_worlds.py       世界名字校验与增删单元测试
+  test_characters.py   角色创建、立绘、目录归属单元测试
   test_presets.py      预设创建与目录隔离单元测试
-  smoke_test.py        端到端冒烟测试（真实进程 + REST + WS + 世界/预设 API）
+  smoke_test.py        端到端冒烟测试（真实进程 + REST + WS + 世界/角色/预设 API）
 myworld.config.example.json
 ```
 
@@ -224,9 +251,10 @@ myworld.config.example.json
 
 ```powershell
 python tests/test_config.py     # 配置与端口逻辑：11 项
-python tests/test_worlds.py     # 世界名字校验、创建列表、缩略图：15 项
+python tests/test_worlds.py     # 世界名字校验、创建列表、缩略图、删除：18 项
+python tests/test_characters.py # 角色创建、重名、立绘、目录归属：7 项
 python tests/test_presets.py    # 预设创建、名字规则、不混入世界列表：5 项
-python tests/smoke_test.py      # 起真实服务，跑 HTTP + WebSocket + 世界/预设 API：27 项
+python tests/smoke_test.py      # 起真实服务，跑 HTTP + WebSocket + 世界/角色/预设 API：45 项
 ```
 
 ## 下一步
