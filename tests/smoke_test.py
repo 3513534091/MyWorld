@@ -189,12 +189,54 @@ async def run_checks(port: int, data_dir: str) -> list[tuple[str, bool, str]]:
         escaped = (Path(data_dir).parent / "escape").exists()
         checks.append(("路径逃逸被挡住", not escaped, "数据目录同级没有出现 escape"))
 
+        # ---- 预设（和世界同一套名字规则，独立目录） ----
+        async with session.get(base + "/api/presets") as response:
+            listing = await response.json()
+            checks.append(
+                (
+                    "GET /api/presets 初始为空",
+                    response.status == 200 and listing.get("items") == [],
+                    f"root={listing.get('root')}",
+                )
+            )
+
+        async with session.post(base + "/api/presets", json={"name": "测试预设"}) as response:
+            preset = await response.json()
+            checks.append(
+                (
+                    "POST /api/presets 创建预设",
+                    response.status == 201 and preset.get("path") == "presets/测试预设",
+                    f"{response.status} {preset.get('path')}",
+                )
+            )
+
+        preset_dir = Path(data_dir).parent / "presets" / "测试预设"
+        checks.append(
+            (
+                "预设目录与 preset.json 已生成",
+                (preset_dir / "preset.json").is_file(),
+                str(preset_dir),
+            )
+        )
+
+        async with session.post(base + "/api/presets", json={"name": "测试预设"}) as response:
+            body = await response.json()
+            checks.append(("预设重名返回 409", response.status == 409, str(body.get("detail", ""))))
+
+        async with session.get(base + "/api/worlds") as response:
+            listing = await response.json()
+            names = [item["name"] for item in listing.get("items", [])]
+            checks.append(("预设不会混进世界列表", "测试预设" not in names, str(names)))
+
     return checks
 
 
 async def main() -> int:
     port = pick_port()
-    data_dir = tempfile.mkdtemp(prefix="myworld-data-")
+    # 用沙箱目录：data/ 放里面，预设目录 presets/ 跟着落在同一层，跑完整个删掉
+    sandbox = tempfile.mkdtemp(prefix="myworld-smoke-")
+    data_dir = os.path.join(sandbox, "data")
+    os.makedirs(data_dir, exist_ok=True)
     env = dict(os.environ, PYTHONUTF8="1", MYWORLD_DATA_DIR=data_dir)
     process = subprocess.Popen(
         [sys.executable, "-m", "myworld", "--port", str(port), "--log-level", "warning"],
@@ -219,7 +261,7 @@ async def main() -> int:
         except subprocess.TimeoutExpired:
             process.kill()
         output = (process.stdout.read() if process.stdout else "") or ""
-        shutil.rmtree(data_dir, ignore_errors=True)
+        shutil.rmtree(sandbox, ignore_errors=True)
 
     width = max(len(name) for name, _, _ in checks) + 2
     failures = 0

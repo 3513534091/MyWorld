@@ -104,7 +104,9 @@ data/
     world.json
 ```
 
-在左侧功能区点「世界」：每个世界是一张 **16:9 的图片 + 下方名字**，按名字排序；「创建新世界」固定放在所有世界的下面，点它展开输入框，回车或「创建」即可。新建的世界立刻出现在列表里，点一下选中（暗色蒙版 + 浅色对号）。
+在左侧功能区点「世界」：每个世界是一张 **16:9 的图片 + 下方名字**，按名字排序；「创建新世界」固定放在所有世界的下面，点它**弹出对话框**输入名字，回车或「创建」即可。新建的世界立刻出现在列表里，点一下选中（暗色蒙版 + 浅色对号）。
+
+![创建弹窗](docs/screenshot-dialog.png)
 
 左栏底部固定着一条 **「选中项 + 加载」** 栏（只在「世界」面板出现）：先在列表里点中一张图，底栏会显示它的名字，点「加载」就把这个世界载入 —— 画布切到「当前世界」视图（显示名字与路径），点「关闭世界」回到占位。没有选中时「加载」是灰的。
 
@@ -124,6 +126,22 @@ data/
 
 `data/` 里的内容不进版本库（只保留 `.gitkeep` 占位）。
 
+## 预设与 presets/ 目录
+
+预设是「可复用的配置」，同样一个预设一个目录，放在世界目录旁边的 `presets/`（默认在项目根）：
+
+```
+presets/
+  清晨光线/
+    preset.json     # {"name": "...", "created_at": "...", "format": 1}
+```
+
+在左侧功能区点「预设」，点底部的 **「创建新预设」** 卡片，在同一个弹窗式对话框里输入名字即可。预设和世界共用一套名字规则（长度、非法字符、Windows 保留名等），重名返回 409。
+
+![预设面板](docs/screenshot-presets.png)
+
+> 预设目前只有目录与元数据，具体的「一套参数」内容等执行链路做完再定义。
+
 ## 接口
 
 | 方法 | 路径 | 说明 |
@@ -134,6 +152,8 @@ data/
 | GET | `/api/worlds` | 列出 `data/` 下所有世界 |
 | POST | `/api/worlds` | 创建世界，体 `{"name": "名字"}`；重名 409、非法名 400 |
 | GET | `/api/worlds/{名字}/thumbnail` | 世界缩略图；没有真实图片时按 `?theme=dark\|light` 返回对应默认图，世界不存在 404 |
+| GET | `/api/presets` | 列出 `presets/` 下所有预设 |
+| POST | `/api/presets` | 创建预设，体 `{"name": "名字"}`；重名 409、非法名 400 |
 | POST | `/api/demo/tick` | 向所有已连接页面广播一条事件（验证推送链路） |
 | GET | `/api/docs` | 自动生成的 Swagger 文档 |
 | WS | `/ws` | 心跳与事件推送通道 |
@@ -169,6 +189,7 @@ myworld/
   events.py            进程内事件总线（发布 → 多个 WS 订阅者）
   server.py            FastAPI 应用：REST + WebSocket + 静态托管
   worlds.py            世界管理：名字校验、创建、列表（data/ 目录）
+  presets.py           预设管理：同样的名字规则，存 presets/ 目录
 web/
   index.html           界面结构：顶栏 / 左侧功能区 / 内容面板 / 画布
   css/style.css        明暗两套主题 + 排版刻度（全部是 CSS 变量）
@@ -177,10 +198,13 @@ web/
   img/world-default-light.svg 世界缩略图默认图（浅色）
 data/
   .gitkeep             世界目录（内容不入库）
+presets/
+  .gitkeep             预设目录（内容不入库）
 tests/
   test_config.py       配置解析单元测试（纯标准库）
   test_worlds.py       世界名字校验与增删单元测试
-  smoke_test.py        端到端冒烟测试（真实进程 + REST + WS + 世界 API）
+  test_presets.py      预设创建与目录隔离单元测试
+  smoke_test.py        端到端冒烟测试（真实进程 + REST + WS + 世界/预设 API）
 myworld.config.example.json
 ```
 
@@ -189,7 +213,8 @@ myworld.config.example.json
 ```powershell
 python tests/test_config.py     # 配置与端口逻辑：11 项
 python tests/test_worlds.py     # 世界名字校验、创建列表、缩略图：15 项
-python tests/smoke_test.py      # 起真实服务，跑 HTTP + WebSocket + 世界 API：20 项
+python tests/test_presets.py    # 预设创建、名字规则、不混入世界列表：5 项
+python tests/smoke_test.py      # 起真实服务，跑 HTTP + WebSocket + 世界/预设 API：27 项
 ```
 
 ## 下一步

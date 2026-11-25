@@ -22,14 +22,19 @@
     sidebar: $("sidebar"),
     panel: document.querySelector(".panel"),
     btnSidebar: $("btnSidebar"),
-    worldName: $("worldName"),
-    worldForm: $("worldForm"),
     btnCreateWorld: $("btnCreateWorld"),
-    btnSubmitWorld: $("btnSubmitWorld"),
-    btnCancelWorld: $("btnCancelWorld"),
-    worldError: $("worldError"),
     worldList: $("worldList"),
     worldEmpty: $("worldEmpty"),
+    btnCreatePreset: $("btnCreatePreset"),
+    presetList: $("presetList"),
+    presetEmpty: $("presetEmpty"),
+    createDialog: $("createDialog"),
+    createForm: $("createForm"),
+    createTitle: $("createTitle"),
+    createName: $("createName"),
+    createError: $("createError"),
+    btnDialogSubmit: $("btnDialogSubmit"),
+    btnDialogCancel: $("btnDialogCancel"),
     loadTarget: $("loadTarget"),
     btnLoadWorld: $("btnLoadWorld"),
     loadError: $("loadError"),
@@ -123,8 +128,9 @@
     });
     // 底部「选中项 + 加载」只在世界面板出现
     if (el.panel) el.panel.dataset.activePane = name;
-    // 世界列表可能被别处改过（比如删了目录），切过去时 reload 一次
+    // 列表可能被别处改过（比如删了目录），切过去时 reload 一次
     if (name === "world") loadWorlds();
+    if (name === "presets") loadPresets();
   }
 
   function initRail() {
@@ -139,23 +145,12 @@
   let selectedWorld = null;
   let selectedItem = null;
 
-  function showWorldError(message) {
-    el.worldError.textContent = message;
-    el.worldError.hidden = false;
-  }
-
-  function clearWorldError() {
-    el.worldError.textContent = "";
-    el.worldError.hidden = true;
-  }
-
   async function loadWorlds() {
     try {
       const data = await fetchJSON("/api/worlds");
-      clearWorldError();
       renderWorlds(Array.isArray(data.items) ? data.items : []);
     } catch (err) {
-      showWorldError("读取世界列表失败：" + err.message);
+      debug("读取世界列表失败", err.message);
     }
   }
 
@@ -279,49 +274,110 @@
     if (el.canvasHint) el.canvasHint.hidden = false;
   }
 
-  function openWorldForm() {
-    if (!el.worldForm || !el.btnCreateWorld) return;
-    el.btnCreateWorld.hidden = true;
-    el.worldForm.hidden = false;
-    clearWorldError();
-    el.worldName.value = "";
-    // 等这一帧渲染完再聚焦，避免元素还没上屏时 focus 无效
-    requestAnimationFrame(() => el.worldName?.focus());
+  // ---------------- 创建弹窗（世界 / 预设共用） ----------------
+
+  let createMode = null; // "world" | "preset"
+
+  function showCreateError(message) {
+    if (!el.createError) return;
+    el.createError.textContent = message;
+    el.createError.hidden = false;
   }
 
-  function closeWorldForm() {
-    if (!el.worldForm || !el.btnCreateWorld) return;
-    el.worldForm.hidden = true;
-    el.btnCreateWorld.hidden = false;
-    el.worldName.value = "";
-    clearWorldError();
+  function clearCreateError() {
+    if (!el.createError) return;
+    el.createError.textContent = "";
+    el.createError.hidden = true;
   }
 
-  async function createWorld() {
-    if (!el.worldName) return;
-    const name = el.worldName.value.trim();
+  function openCreateDialog(mode) {
+    if (!el.createDialog || !el.createName) return;
+    createMode = mode;
+    const isWorld = mode === "world";
+
+    el.createTitle.textContent = isWorld ? "创建新世界" : "创建新预设";
+    el.createName.placeholder = isWorld ? "给世界取个名字" : "给预设取个名字";
+    el.createName.value = "";
+    clearCreateError();
+
+    el.createDialog.showModal();
+    requestAnimationFrame(() => el.createName?.focus());
+  }
+
+  function closeCreateDialog() {
+    clearCreateError();
+    if (el.createDialog?.open) el.createDialog.close();
+  }
+
+  async function submitCreate() {
+    const mode = createMode;
+    if (!mode || !el.createName) return;
+
+    const name = el.createName.value.trim();
     if (!name) {
-      showWorldError("先给世界取个名字");
-      el.worldName.focus();
+      showCreateError("名字不能为空");
+      el.createName.focus();
       return;
     }
 
-    el.btnSubmitWorld.disabled = true;
+    el.btnDialogSubmit.disabled = true;
     try {
-      const created = await fetchJSON("/api/worlds", {
+      const url = mode === "world" ? "/api/worlds" : "/api/presets";
+      const created = await fetchJSON(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name }),
       });
-      closeWorldForm();
-      selectedWorld = created.name;
-      await loadWorlds();
-      const node = el.worldList.querySelector(`.world-card[data-name="${CSS.escape(created.name)}"]`);
-      if (node) selectWorld(created, node);
+
+      closeCreateDialog();
+
+      if (mode === "world") {
+        selectedWorld = created.name;
+        await loadWorlds();
+        const node = el.worldList.querySelector(`.world-card[data-name="${CSS.escape(created.name)}"]`);
+        if (node) selectWorld(created, node);
+      } else {
+        await loadPresets();
+        debug("创建预设", created);
+      }
     } catch (err) {
-      showWorldError(err.message);
+      showCreateError(err.message);
     } finally {
-      el.btnSubmitWorld.disabled = false;
+      el.btnDialogSubmit.disabled = false;
+    }
+  }
+
+  // ---------------- 预设 ----------------
+
+  async function loadPresets() {
+    try {
+      const data = await fetchJSON("/api/presets");
+      renderPresets(Array.isArray(data.items) ? data.items : []);
+    } catch (err) {
+      debug("读取预设失败", err.message);
+    }
+  }
+
+  function renderPresets(items) {
+    el.presetList.replaceChildren();
+    el.presetEmpty.hidden = items.length > 0;
+
+    for (const item of items) {
+      const row = document.createElement("div");
+      row.className = "preset-item";
+      row.dataset.name = item.name;
+
+      const name = document.createElement("span");
+      name.className = "preset-name";
+      name.textContent = item.name;
+
+      const time = document.createElement("span");
+      time.className = "preset-time";
+      time.textContent = formatStartTime(item.created_at).replace(/:\d{2}$/, "");
+      time.title = item.created_at ?? "";
+
+      row.append(name, time);
+      el.presetList.append(row);
     }
   }
 
@@ -613,17 +669,18 @@
   initTheme();
   initRail();
   initSidebar();
-  on(el.btnCreateWorld, "click", openWorldForm);
-  on(el.btnCancelWorld, "click", closeWorldForm);
+  on(el.btnCreateWorld, "click", () => openCreateDialog("world"));
+  on(el.btnCreatePreset, "click", () => openCreateDialog("preset"));
   on(el.btnLoadWorld, "click", loadSelectedWorld);
   on(el.btnCloseWorld, "click", closeLoadedWorld);
-  on(el.worldForm, "submit", (event) => {
+  on(el.createForm, "submit", (event) => {
     event.preventDefault();
-    createWorld();
+    submitCreate();
   });
-  on(el.worldName, "keydown", (event) => {
-    if (event.key === "Escape") closeWorldForm();
-  });
+  on(el.btnDialogCancel, "click", closeCreateDialog);
+  // Esc / 点击遮罩关闭时清掉错误提示
+  on(el.createDialog, "cancel", clearCreateError);
+  on(el.createDialog, "close", clearCreateError);
   refreshStatus();
   loadConfig();
   loadWorlds();

@@ -22,7 +22,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from . import __version__, worlds
+from . import __version__, presets, worlds
 from .config import Settings
 from .events import EventBus
 
@@ -34,8 +34,8 @@ DEFAULT_WORLD_THUMBS = {
 logger = logging.getLogger("myworld")
 
 
-class WorldCreateRequest(BaseModel):
-    """POST /api/worlds 的请求体。"""
+class NameRequest(BaseModel):
+    """POST /api/worlds 与 /api/presets 的请求体。"""
 
     name: str = ""
 
@@ -158,13 +158,28 @@ def create_app(settings: Settings) -> FastAPI:
         return {"root": str(root), "items": worlds.list_worlds(root)}
 
     @app.post("/api/worlds", summary="创建新世界", status_code=201)
-    async def api_create_world(payload: WorldCreateRequest) -> dict[str, Any]:
+    async def api_create_world(payload: NameRequest) -> dict[str, Any]:
         root = worlds.resolve_root(runtime.settings.data_dir)
         try:
             created = worlds.create_world(root, payload.name)
         except worlds.WorldError as exc:
             raise HTTPException(status_code=exc.status, detail=str(exc)) from exc
         logger.info("创建世界「%s」→ %s", created["name"], created["path"])
+        return created
+
+    @app.get("/api/presets", summary="列出所有预设")
+    async def api_presets() -> dict[str, Any]:
+        root = presets.resolve_root(worlds.resolve_root(runtime.settings.data_dir))
+        return {"root": str(root), "items": presets.list_presets(root)}
+
+    @app.post("/api/presets", summary="创建新预设", status_code=201)
+    async def api_create_preset(payload: NameRequest) -> dict[str, Any]:
+        root = presets.resolve_root(worlds.resolve_root(runtime.settings.data_dir))
+        try:
+            created = presets.create_preset(root, payload.name)
+        except worlds.WorldError as exc:
+            raise HTTPException(status_code=exc.status, detail=str(exc)) from exc
+        logger.info("创建预设「%s」→ %s", created["name"], created["path"])
         return created
 
     @app.get("/api/worlds/{name}/thumbnail", summary="世界缩略图（没有则用默认图）")

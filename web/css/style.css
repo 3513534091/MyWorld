@@ -606,13 +606,8 @@ body {
   margin-top: 6px;
 }
 
-/* ---------- 世界面板 ---------- */
-/* 世界列表在上，创建入口固定在所有世界下面 */
-.world-actions {
-  margin-top: 8px;
-}
-
-/* 平时只是一张大圆角卡片，点开才出现输入框 */
+/* ---------- 世界 / 预设面板 ---------- */
+/* 创建卡片：世界与预设共用，放在各自列表的下面 */
 .world-create-card {
   display: flex;
   align-items: center;
@@ -620,7 +615,7 @@ body {
   gap: 10px;
   width: 100%;
   min-height: 92px;
-  margin-bottom: 12px;
+  margin: 10px 0 0;
   padding: 18px;
   border: 1px solid var(--btn-border);
   border-radius: var(--radius-lg);
@@ -647,19 +642,87 @@ body {
   height: 20px;
 }
 
-.world-form {
+/* ---------- 预设列表 ---------- */
+.preset-list {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  margin-bottom: 0;
-  padding: 14px;
-  border: 1px solid var(--accent);
-  border-radius: var(--radius-lg);
-  background: var(--panel);
+  gap: 8px;
 }
 
-.world-form-actions {
+.preset-item {
   display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 13px;
+  border: 1px solid var(--border-soft);
+  border-radius: var(--radius-md);
+  background: var(--chip-bg);
+}
+
+.preset-name {
+  overflow: hidden;
+  color: var(--text);
+  font-size: var(--fs-small);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.preset-time {
+  flex: none;
+  color: var(--text-faint);
+  font-family: var(--mono);
+  font-size: var(--fs-tiny);
+}
+
+/* ---------- 创建弹窗 ---------- */
+.dialog {
+  width: min(360px, calc(100vw - 40px));
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--panel);
+  color: var(--text);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+}
+
+.dialog::backdrop {
+  background: rgba(6, 8, 14, 0.55);
+  backdrop-filter: blur(2px);
+}
+
+.dialog[open] {
+  animation: dialog-in 0.16s ease-out;
+}
+
+@keyframes dialog-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.dialog-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 18px;
+}
+
+.dialog-title {
+  margin: 0;
+  color: var(--text);
+  font-size: var(--fs-base);
+  font-weight: 600;
+}
+
+.dialog-actions {
+  display: flex;
+  justify-content: flex-end;
   gap: 8px;
 }
 

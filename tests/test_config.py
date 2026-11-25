@@ -44,9 +44,11 @@ class ResolveTests(unittest.TestCase):
     def test_defaults(self) -> None:
         settings = resolve(cwd=self.cwd, env={})
         self.assertEqual(settings.host, DEFAULT_HOST)
-        self.assertEqual(settings.port, DEFAULT_PORT)
-        self.assertEqual(settings.sources["port"], "default")
-        self.assertFalse(settings.port_shifted)
+        # 默认端口是 8000；若本机 8000 正好被占（比如服务正在跑），会自动顺延
+        self.assertEqual(settings.requested_port, DEFAULT_PORT)
+        self.assertTrue(settings.port_shifted or settings.port == DEFAULT_PORT)
+        self.assertEqual(settings.sources["port"].split("+")[0], "default")
+        self.assertFalse(settings.open_browser)
 
     def test_env_overrides_default(self) -> None:
         settings = resolve(cwd=self.cwd, env={"MYWORLD_HOST": "0.0.0.0", "MYWORLD_PORT": "9100"})
