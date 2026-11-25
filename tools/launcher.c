@@ -11,6 +11,12 @@
  *   2. 按顺序选择解释器：MYWORLD_PYTHON 环境变量 → .venv → PATH 上的 python/py
  *   3. 启动 `python -m myworld <原样参数>`，强制 UTF-8，等待其结束
  *   4. 透传子进程退出码；出错时停下并提示，避免窗口一闪而过
+ *   5. 双击启动（挂在交互式控制台上）时自动打开浏览器；脚本/重定向场景保持安静
+ *
+ * 启动器自己的开关（不转发给 Python）：
+ *   --no-open     不要自动打开浏览器
+ *   --open        强制打开（默认在交互式控制台下即打开）
+ *   --print-args  只打印最终拼好的命令行后退出，用于排查参数与引号问题
  *
  * 构建（任选一条，用的是 UCRT64 mingw-w64）：
  *   gcc -O2 -municode -static -static-libgcc -o MyWorld.exe tools\launcher.c
@@ -79,6 +85,20 @@ static void pause_if_console(void)
     write_stream(g_err, L"\n按任意键关闭窗口…");
     FlushConsoleInputBuffer(g_in);
     (void)_getwch();
+}
+
+/* stdin/stdout 都挂在真实控制台上，才认为是「人在用」，而不是脚本/重定向 */
+static int console_is_interactive(void)
+{
+    DWORD mode = 0;
+
+    if (g_in == INVALID_HANDLE_VALUE || g_out == INVALID_HANDLE_VALUE) {
+        return 0;
+    }
+    if (GetFileType(g_in) != FILE_TYPE_CHAR || GetFileType(g_out) != FILE_TYPE_CHAR) {
+        return 0;
+    }
+    return GetConsoleMode(g_in, &mode) != 0 && GetConsoleMode(g_out, &mode) != 0;
 }
 
 /* ---------------- 子进程控制 ---------------- */
@@ -285,6 +305,19 @@ int wmain(int argc, wchar_t **argv)
     size_t used = 0;
     cmdline[0] = L'\0';
 
+    /* 先扫一遍只属于启动器自己的开关：它们不会被转发给 Python */
+    int explicit_open = -1; /* -1 未表态 / 1 要求开 / 0 要求关 */
+    int print_args = 0;
+    for (int i = 1; i < argc; ++i) {
+        if (wcscmp(argv[i], L"--print-args") == 0) {
+            print_args = 1;
+        } else if (wcscmp(argv[i], L"--open") == 0) {
+            explicit_open = 1;
+        } else if (wcscmp(argv[i], L"--no-open") == 0) {
+            explicit_open = 0;
+        }
+    }
+
     if (!append_arg(cmdline, CMDLINE_CAP, &used, python)) {
         complain(L"[MyWorld] 命令行过长。\n");
         return 5;
@@ -298,11 +331,33 @@ int wmain(int argc, wchar_t **argv)
         return 5;
     }
     for (int i = 1; i < argc; ++i) {
+        if (wcscmp(argv[i], L"--print-args") == 0) {
+            continue;
+        }
         if (!append_literal(cmdline, CMDLINE_CAP, &used, L" ") ||
             !append_arg(cmdline, CMDLINE_CAP, &used, argv[i])) {
             complain(L"[MyWorld] 命令行过长。\n");
             return 5;
         }
+    }
+
+    /* 双击启动（有交互控制台）且用户没表态时，自己把页面弹出来 */
+    if (explicit_open < 0 && console_is_interactive()) {
+        if (!append_literal(cmdline, CMDLINE_CAP, &used, L" --open")) {
+            complain(L"[MyWorld] 命令行过长。\n");
+            return 5;
+        }
+    }
+
+    if (print_args) {
+        size_t need = wcslen(cmdline) + 32;
+        wchar_t *message = (wchar_t *)malloc(need * sizeof(wchar_t));
+        if (message != NULL) {
+            swprintf(message, need, L"[cmdline] %ls\n", cmdline);
+            write_stream(g_out, message);
+            free(message);
+        }
+        return 0;
     }
 
     /* 5. 让 Python 一侧固定用 UTF-8，中文日志才不会在控制台变成乱码 */

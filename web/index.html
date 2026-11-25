@@ -21,7 +21,7 @@
       <div class="chip"><span class="chip-label">端口</span><span id="port">—</span></div>
       <div class="chip"><span class="chip-label">延迟</span><span id="latency">—</span></div>
       <button class="btn ghost" id="btnPing">Ping</button>
-      <button class="btn" id="btnTick">服务端广播</button>
+      <button class="btn" id="btnTick">模拟服务端推送</button>
     </div>
   </header>
 
@@ -32,7 +32,11 @@
       <h2>关于这一版</h2>
       <p class="hint">
         这是骨架：静态前端 + 本地 FastAPI 服务 + WebSocket 双向通道。
-        端口、心跳、重连、事件推送都已打通，下一步接节点画布。
+      </p>
+      <p class="hint">
+        <b>Ping</b> 是心跳，用来探活并测出延迟；<b>模拟服务端推送</b> 用来验证
+        「后端 → 页面」这条单向推送通道 —— 之后执行进度、队列变化都从这里推过来，
+        页面永远不需要轮询。
       </p>
     </aside>
 

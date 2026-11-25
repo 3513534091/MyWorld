@@ -11,10 +11,13 @@
 双击 `MyWorld.exe`，或在命令行里：
 
 ```powershell
-.\MyWorld.exe                     # 默认 http://127.0.0.1:8000
+.\MyWorld.exe                     # 默认 http://127.0.0.1:8000，并自动打开浏览器
 .\MyWorld.exe --port 9000         # 换端口
-.\MyWorld.exe --port 9000 --open  # 启动后自动打开浏览器
+.\MyWorld.exe --no-open           # 只要服务，不弹浏览器
+.\MyWorld.exe --print-args        # 只打印最终命令行，排查参数问题
 ```
+
+双击运行时，服务起来后浏览器会自动跳到工作台；从脚本调用或被重定向（`> log.txt`）时不会自动弹窗口，避免干扰自动化。
 
 首次使用前装依赖（本机已就绪，换机器才需要）：
 
@@ -35,6 +38,7 @@ python -m pip install -r requirements.txt
 | 校验项目根 | exe 旁边没有 `myworld\` 时直接给出可读提示，而不是抛一堆 Python 报错 |
 | 强制 UTF-8 | 设置 `PYTHONUTF8=1`、`PYTHONIOENCODING=utf-8`，控制台与重定向文件都不会乱码 |
 | 透传参数与退出码 | `--port` 等参数原样转发；Python 返回几，exe 就返回几（实测非法端口返回 2） |
+| 自动开浏览器 | 挂在交互式控制台上（双击或终端里直接跑）时，服务启动即打开工作台；`--no-open` 可关，重定向场景不会打扰 |
 | Ctrl+C 处理 | 启动器自己忽略 Ctrl+C，交给 uvicorn 优雅关闭，避免留下孤儿进程 |
 
 改了 `launcher.c` 之后重新构建：
